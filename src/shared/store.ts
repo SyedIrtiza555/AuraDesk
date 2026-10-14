@@ -12,6 +12,9 @@ interface UIState {
   // Authentication & current user
   currentUser: UserProfile | null;
   setCurrentUser: (user: UserProfile | null) => void;
+  // Message shown on the sign-in screen after a forced sign-out (e.g. removed by owner)
+  authNotice: string | null;
+  setAuthNotice: (notice: string | null) => void;
 
   // Multi-View Navigation
   activeViewMode: OrderViewMode;
@@ -69,6 +72,8 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   currentUser: null,
   setCurrentUser: (user) => set({ currentUser: user }),
+  authNotice: null,
+  setAuthNotice: (notice) => set({ authNotice: notice }),
 
   // Multi-View Mode (Default: Table view)
   activeViewMode: 'table',

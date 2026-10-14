@@ -1,28 +1,26 @@
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, collection, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './shared/firebase';
 import { useUIStore } from './shared/store';
 import type { UserProfile } from './shared/types';
+import { ensureUserProfile } from './shared/userProfile';
 import { AuthView } from './features/auth/AuthView';
 import { WaitingRoomView } from './features/auth/WaitingRoomView';
 import { TeamGovernanceModal } from './features/team/TeamGovernanceModal';
 import { OrderDashboard } from './features/orders/OrderDashboard';
 import { UpdateNotifier } from './features/layout/UpdateNotifier';
 
-const isOwnerEmail = (email?: string | null) => {
-  const norm = (email || '').toLowerCase().trim();
-  return norm === 's.irtizahussain@gmail.com' || norm.includes('shahrukh');
-};
-
 export function App() {
   const currentUser = useUIStore((s) => s.currentUser);
   const setCurrentUser = useUIStore((s) => s.setCurrentUser);
+  const setAuthNotice = useUIStore((s) => s.setAuthNotice);
 
-  const [teamUsers, setTeamUsers] = useState<UserProfile[]>([]);
+  const [teamSnapshot, setTeamSnapshot] = useState<UserProfile[]>([]);
   const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
 
-  // Sync authentic Firebase Auth state & Real-Time Profile Listener
+  // Firebase Auth state -> ensure profile doc -> live profile listener.
+  // The Firestore doc is the only source of truth for role/status (it is what the rules enforce).
   useEffect(() => {
     let unsubUserDoc: (() => void) | null = null;
 
@@ -32,73 +30,72 @@ export function App() {
         unsubUserDoc = null;
       }
 
-      if (firebaseUser) {
-        try {
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const snap = await getDoc(userDocRef);
-          const isOwner = isOwnerEmail(firebaseUser.email);
-
-          if (!snap.exists()) {
-            const initialRole = isOwner ? 'owner' : 'unassigned';
-            const initialStatus = initialRole === 'owner' ? 'active' : 'pending_approval';
-            const fallbackProfile: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Team Member',
-              role: initialRole,
-              status: initialStatus,
-              initials: (firebaseUser.displayName || firebaseUser.email || 'TM').slice(0, 2).toUpperCase(),
-              createdAt: Date.now(),
-            };
-            await setDoc(userDocRef, fallbackProfile);
-            setCurrentUser(fallbackProfile);
-          } else {
-            const existing = snap.data() as UserProfile;
-            if (isOwner && (existing.role !== 'owner' || existing.status !== 'active')) {
-              await updateDoc(userDocRef, { role: 'owner', status: 'active' });
-              setCurrentUser({ ...existing, role: 'owner', status: 'active' });
-            }
-          }
-        } catch (e) {
-          console.warn('Profile initialization error:', e);
-        }
-
-        // Real-time listener for current user document updates
-        unsubUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
-            if (isOwnerEmail(firebaseUser.email) && data.role !== 'owner') {
-              setCurrentUser({ ...data, role: 'owner', status: 'active' });
-            } else {
-              setCurrentUser(data);
-            }
-          }
-        });
-      } else {
+      if (!firebaseUser) {
         setCurrentUser(null);
+        setIsAuthChecking(false);
+        return;
       }
-      setIsAuthChecking(false);
+
+      setIsAuthChecking(true);
+      let profileEnsured = false;
+      try {
+        await ensureUserProfile(firebaseUser);
+        profileEnsured = true;
+      } catch (e) {
+        console.warn('[Aura Desk] Profile initialization error:', e);
+      }
+
+      unsubUserDoc = onSnapshot(
+        doc(db, 'users', firebaseUser.uid),
+        { includeMetadataChanges: true },
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setCurrentUser(docSnap.data() as UserProfile);
+            setIsAuthChecking(false);
+          } else if (!docSnap.metadata.fromCache) {
+            // Server confirms there is no profile: removed by the owner, or it could not be created
+            setAuthNotice(
+              profileEnsured
+                ? 'Your workspace access was removed by the owner. Sign in again to request access.'
+                : 'Could not create your workspace profile. Check your connection and sign in again.'
+            );
+            setCurrentUser(null);
+            setIsAuthChecking(false);
+            signOut(auth).catch((e) => console.warn('[Aura Desk] Sign-out error:', e));
+          }
+        },
+        (err) => {
+          console.warn('[Aura Desk] Profile listener error:', err);
+          setCurrentUser(null);
+          setIsAuthChecking(false);
+        }
+      );
     });
 
     return () => {
       unsubAuth();
       if (unsubUserDoc) unsubUserDoc();
     };
-  }, [setCurrentUser]);
+  }, [setCurrentUser, setAuthNotice]);
 
-  // Sync authentic Team Directory directly from Firestore
+  // Team directory: only active members may read it (see firestore.rules)
+  const canReadTeam =
+    currentUser?.status === 'active' && currentUser.role !== 'unassigned';
+
   useEffect(() => {
-    try {
-      const unsubTeam = onSnapshot(collection(db, 'users'), (snapshot) => {
+    if (!canReadTeam) return;
+    const unsubTeam = onSnapshot(
+      collection(db, 'users'),
+      (snapshot) => {
         const list: UserProfile[] = [];
         snapshot.forEach((d) => list.push(d.data() as UserProfile));
-        setTeamUsers(list);
-      });
-      return () => unsubTeam();
-    } catch (e) {
-      console.warn('Team snapshot fallback:', e);
-    }
-  }, []);
+        setTeamSnapshot(list);
+      },
+      (err) => console.warn('[Aura Desk] Team listener error:', err)
+    );
+    return () => unsubTeam();
+  }, [canReadTeam]);
+  const teamUsers = canReadTeam ? teamSnapshot : [];
 
   // 1. Initial Auth Check -> Dedicated branded loading screen (prevents flash of login screen)
   if (isAuthChecking) {
@@ -126,8 +123,8 @@ export function App() {
     return <AuthView />;
   }
 
-  // 3. Unassigned or pending approval -> Locked to Waiting Room View
-  if (currentUser.role === 'unassigned' || currentUser.status === 'pending_approval') {
+  // 3. Unassigned, pending approval or suspended -> Locked to Waiting Room View
+  if (currentUser.role === 'unassigned' || currentUser.status !== 'active') {
     return <WaitingRoomView />;
   }
 
@@ -139,7 +136,7 @@ export function App() {
       </main>
 
       {/* Team Governance Modal */}
-      <TeamGovernanceModal />
+      <TeamGovernanceModal teamUsers={teamUsers} />
 
       {/* Auto-Updater Available Notification & 1-Click Installer */}
       <UpdateNotifier />

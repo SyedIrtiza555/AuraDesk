@@ -5,11 +5,14 @@ import {
   doc,
   setDoc,
   updateDoc,
+  query,
+  where,
 } from 'firebase/firestore';
 import { db } from '../../shared/firebase';
-import type { Order, UserProfile, OrderStatus, UserRole } from '../../shared/types';
+import type { Order, UserProfile, OrderStatus } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
-import { Button, Input, Badge } from '../../shared/ui';
+import { Button, Input } from '../../shared/ui';
+import { TeamMemberList } from '../team/TeamMemberList';
 import { dispatchNativeNotification } from '../../shared/notifications';
 import { OrderDetail } from './OrderDetail';
 import { NewOrderModal } from './NewOrderModal';
@@ -22,7 +25,7 @@ import { KanbanStatusView } from './views/KanbanStatusView';
 import { KanbanResourceView } from './views/KanbanResourceView';
 import { CardsGridView } from './views/CardsGridView';
 import { CalendarView } from './views/CalendarView';
-import { Search, Plus, Palette, Briefcase, Users, Shield, Check, UserX } from 'lucide-react';
+import { Search, Plus, Palette, Briefcase, Users, Shield } from 'lucide-react';
 
 export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
   const currentUser = useUIStore((s) => s.currentUser);
@@ -40,23 +43,30 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
   // Clean state directly from Firestore (no hardcoded pre-seeded fake orders)
   const [orders, setOrders] = useState<Order[]>([]);
 
+  const isDesigner = currentUser?.role === 'designer';
+  const currentUid = currentUser?.uid;
+
   useEffect(() => {
-    try {
-      const unsub = onSnapshot(collection(db, 'orders'), (snapshot) => {
+    if (!currentUid) return;
+    // Firestore rules only let designers read their own orders, so the query must say so
+    const ordersQuery = isDesigner
+      ? query(collection(db, 'orders'), where('assigned_designer_id', '==', currentUid))
+      : collection(db, 'orders');
+    const unsub = onSnapshot(
+      ordersQuery,
+      (snapshot) => {
         const list: Order[] = [];
         snapshot.forEach((d) => {
           list.push(d.data() as Order);
         });
         list.sort((a, b) => b.created_at - a.created_at);
         setOrders(list);
-      });
-      return () => unsub();
-    } catch (e) {
-      console.warn('[Aura Desk] Firestore orders listener:', e);
-    }
-  }, []);
+      },
+      (err) => console.warn('[Aura Desk] Firestore orders listener:', err)
+    );
+    return () => unsub();
+  }, [currentUid, isDesigner]);
 
-  const isDesigner = currentUser?.role === 'designer';
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
   const isAgent = currentUser?.role === 'sales_agent';
 
@@ -195,29 +205,6 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
   const uniqueProspects = Array.from(
     new Set(orders.map((o) => o.client_name))
   ).length;
-
-  const handleUpdateRole = async (targetUid: string, newRole: UserRole) => {
-    try {
-      await updateDoc(doc(db, 'users', targetUid), {
-        role: newRole,
-        status: 'active',
-        approvedAt: Date.now(),
-        approvedBy: currentUser?.displayName,
-      });
-    } catch (err) {
-      console.warn('Firestore update role error:', err);
-    }
-  };
-
-  const handleSuspend = async (targetUid: string) => {
-    try {
-      await updateDoc(doc(db, 'users', targetUid), {
-        status: 'suspended',
-      });
-    } catch (err) {
-      console.warn('Firestore suspend user error:', err);
-    }
-  };
 
   return (
     <div className="flex-1 flex overflow-hidden bg-[#F5F5F7] select-none relative">
@@ -387,107 +374,7 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
                       </div>
                     </div>
 
-                    {teamUsers.length === 0 ? (
-                      <div className="text-xs text-slate-400 italic">No registered users in database.</div>
-                    ) : (
-                      <div className="divide-y divide-slate-100 border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-xs">
-                        {teamUsers.map((member) => {
-                          const isMemberOwner = member.role === 'owner';
-                          const isPending = member.status === 'pending_approval';
-                          const canManage = currentUser?.role === 'owner';
-
-                          return (
-                            <div
-                              key={member.uid}
-                              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-[#1C1D21] text-white flex items-center justify-center text-xs font-bold font-mono">
-                                  {member.initials || member.displayName.slice(0, 2).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-xs text-[#1C1D21]">
-                                      {member.displayName}
-                                    </span>
-                                    {isMemberOwner && (
-                                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 text-white font-medium">
-                                        Owner
-                                      </span>
-                                    )}
-                                    {isPending && (
-                                      <Badge variant="warning" className="text-[9px]">
-                                        Pending Approval
-                                      </Badge>
-                                    )}
-                                    {member.status === 'suspended' && (
-                                      <Badge variant="danger" className="text-[9px]">
-                                        Suspended
-                                      </Badge>
-                                    )}
-                                    {member.status === 'active' && !isMemberOwner && (
-                                      <Badge variant="success" className="text-[9px]">
-                                        Active
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-[11px] text-[#6B7280]">{member.email}</div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                {isMemberOwner ? (
-                                  <span className="text-xs font-medium text-slate-500 px-3 py-1 bg-slate-100 rounded-lg">
-                                    Full Access
-                                  </span>
-                                ) : canManage ? (
-                                  <div className="flex items-center gap-2">
-                                    <select
-                                      value={member.role}
-                                      onChange={(e) =>
-                                        handleUpdateRole(member.uid, e.target.value as UserRole)
-                                      }
-                                      className="bg-white border border-slate-200 rounded-lg text-xs px-2.5 py-1 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-slate-300"
-                                    >
-                                      <option value="unassigned">Unassigned</option>
-                                      <option value="sales_agent">Sales Agent</option>
-                                      <option value="designer">Designer</option>
-                                      <option value="admin">Admin</option>
-                                      <option value="owner">Owner</option>
-                                    </select>
-
-                                    {isPending && (
-                                      <Button
-                                        size="sm"
-                                        variant="primary"
-                                        onClick={() => handleUpdateRole(member.uid, 'designer')}
-                                        className="text-xs py-1"
-                                      >
-                                        <Check className="w-3 h-3 mr-1" /> Approve
-                                      </Button>
-                                    )}
-
-                                    {member.status === 'active' && (
-                                      <button
-                                        onClick={() => handleSuspend(member.uid)}
-                                        title="Suspend User"
-                                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
-                                      >
-                                        <UserX className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-slate-600 font-medium capitalize">
-                                    {member.role.replace('_', ' ')}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <TeamMemberList members={teamUsers} />
                   </div>
                 )}
 

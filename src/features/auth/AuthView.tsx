@@ -1,24 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
-  type User,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
-import { auth, db } from '../../shared/firebase';
+import { auth } from '../../shared/firebase';
 import { Button, Input } from '../../shared/ui';
 import { LogIn, UserPlus } from 'lucide-react';
-import type { UserProfile } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
+import { ensureUserProfile } from '../../shared/userProfile';
 import { openUrl } from '@tauri-apps/plugin-opener';
-
-// Specific owner emails that always receive the owner role
-const OWNER_EMAILS = ['s.irtizahussain@gmail.com'];
-const isOwnerEmail = (email?: string | null) =>
-  Boolean(email && OWNER_EMAILS.includes(email.toLowerCase().trim()));
 
 // Helper: Wrap a promise with a timeout so it never hangs indefinitely
 function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMsg: string): Promise<T> {
@@ -38,80 +31,23 @@ function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMsg: string): Pr
   });
 }
 
+// Profiles (and roles) are created by App.tsx via ensureUserProfile on every auth state change;
+// this view only authenticates.
 export function AuthView() {
-  const setCurrentUser = useUIStore((s) => s.setCurrentUser);
+  const authNotice = useUIStore((s) => s.authNotice);
+  const setAuthNotice = useUIStore((s) => s.setAuthNotice);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(authNotice);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
 
-  // Common user profile sync for OAuth logins
-  const syncOAuthUser = async (user: User) => {
-    const isOwner = isOwnerEmail(user.email);
-    let profile: UserProfile | null = null;
-
-    try {
-      const snap = await withTimeout(
-        getDoc(doc(db, 'users', user.uid)),
-        5000,
-        'Profile read timeout'
-      );
-      if (snap.exists()) {
-        profile = snap.data() as UserProfile;
-        // Upgrade role if owner email
-        if (isOwner && profile.role !== 'owner') {
-          profile = { ...profile, role: 'owner', status: 'active' };
-          await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
-        }
-      }
-    } catch (e) {
-      console.warn('[Aura Desk] OAuth Firestore read warning:', e);
-    }
-
-    if (!profile) {
-      // First-time registration for this OAuth user
-      let isFirstUser = false;
-      try {
-        const usersSnap = await withTimeout(
-          getDocs(collection(db, 'users')),
-          5000,
-          'Firestore check timeout'
-        );
-        isFirstUser = usersSnap.empty;
-      } catch {
-        isFirstUser = false;
-      }
-
-      const role = isOwner || isFirstUser ? 'owner' : 'unassigned';
-      const status = isOwner || isFirstUser ? 'active' : 'pending_approval';
-
-      const nameParts = (user.displayName || user.email || 'Team Member').split(' ');
-      const initials =
-        nameParts.map((p) => p[0]?.toUpperCase()).slice(0, 2).join('') || 'U';
-
-      profile = {
-        uid: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || user.email?.split('@')[0] || 'Team Member',
-        role,
-        status,
-        initials,
-        photoURL: user.photoURL || undefined,
-        createdAt: Date.now(),
-      };
-
-      try {
-        await setDoc(doc(db, 'users', user.uid), profile);
-      } catch (e) {
-        console.warn('[Aura Desk] OAuth profile save warning:', e);
-      }
-    }
-
-    setCurrentUser(profile);
-  };
+  // Show a forced sign-out notice once
+  useEffect(() => {
+    if (authNotice) setAuthNotice(null);
+  }, [authNotice, setAuthNotice]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -136,8 +72,7 @@ export function AuthView() {
               if (idToken) {
                 const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
                 const cred = GoogleAuthProvider.credential(idToken);
-                const res = await signInWithCredential(auth, cred);
-                await syncOAuthUser(res.user);
+                await signInWithCredential(auth, cred);
               }
             } catch (err) {
               console.warn('[Loopback Auth Error]:', err);
@@ -156,8 +91,7 @@ export function AuthView() {
       // Standard Firebase popup fallback
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      const result = await signInWithPopup(auth, provider);
-      await syncOAuthUser(result.user);
+      await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       console.error('[Google Sign-In Error]:', err);
       if (err instanceof Error) {
@@ -183,8 +117,7 @@ export function AuthView() {
       const provider = new OAuthProvider('apple.com');
       provider.addScope('email');
       provider.addScope('name');
-      const result = await signInWithPopup(auth, provider);
-      await syncOAuthUser(result.user);
+      await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       console.error('[Apple Sign-In Error]:', err);
       if (err instanceof Error) {
@@ -217,86 +150,18 @@ export function AuthView() {
           'Authentication request timed out. Please check your network and verify Firebase Auth is enabled in the Firebase console.'
         );
 
-        const nameParts = fullName.trim().split(' ');
-        const initials =
-          nameParts.map((p) => p[0]?.toUpperCase()).slice(0, 2).join('') || 'U';
-
-        // 2. Check existing users in Firestore with a quick 5s timeout; fallback to owner if timeout/offline
-        let isFirstUser = true;
+        // 2. Record the chosen name. New members start unassigned/pending; the owner email starts as owner.
         try {
-          const usersSnap = await withTimeout(
-            getDocs(collection(db, 'users')),
-            5000,
-            'Firestore check timed out'
-          );
-          isFirstUser = usersSnap.empty;
-        } catch {
-          // If Firestore is still initializing or offline, default first registrant to owner
-          isFirstUser = true;
-        }
-
-        const newProfile: UserProfile = {
-          uid: cred.user.uid,
-          email: cred.user.email || email.trim(),
-          displayName: fullName.trim() || 'Team Member',
-          role: isFirstUser ? 'owner' : 'unassigned',
-          status: isFirstUser ? 'active' : 'pending_approval',
-          initials,
-          createdAt: Date.now(),
-        };
-
-        // 3. Persist to Firestore (and local IndexedDB cache)
-        try {
-          await withTimeout(
-            setDoc(doc(db, 'users', cred.user.uid), newProfile),
-            5000,
-            'Profile save timed out'
-          );
+          await ensureUserProfile(cred.user, fullName);
         } catch (saveErr) {
-          console.warn('[Aura Desk] Firestore profile saved to local offline cache:', saveErr);
+          console.warn('[Aura Desk] Profile setup warning:', saveErr);
         }
-
-        setCurrentUser(newProfile);
       } else {
-        // 1. Sign in with 12s timeout
-        const cred = await withTimeout(
+        await withTimeout(
           signInWithEmailAndPassword(auth, email.trim(), password),
           12000,
           'Sign in request timed out. Please check your network or credentials.'
         );
-
-        // 2. Fetch profile from Firestore with 5s timeout; use fallback if still syncing
-        let profile: UserProfile | null = null;
-        try {
-          const snap = await withTimeout(
-            getDoc(doc(db, 'users', cred.user.uid)),
-            5000,
-            'Profile read timed out'
-          );
-          if (snap.exists()) {
-            profile = snap.data() as UserProfile;
-          }
-        } catch (fetchErr) {
-          console.warn('[Aura Desk] Firestore profile read fallback:', fetchErr);
-        }
-
-        if (!profile) {
-          profile = {
-            uid: cred.user.uid,
-            email: cred.user.email || email.trim(),
-            displayName: cred.user.displayName || email.trim().split('@')[0],
-            role: 'owner',
-            status: 'active',
-            createdAt: Date.now(),
-          };
-          try {
-            await setDoc(doc(db, 'users', cred.user.uid), profile);
-          } catch {
-            // Ignored if offline
-          }
-        }
-
-        setCurrentUser(profile);
       }
     } catch (err: unknown) {
       console.error('[Aura Desk Auth Error]:', err);
@@ -415,7 +280,7 @@ export function AuthView() {
               <Input
                 type="text"
                 required
-                placeholder="Shahrukh"
+                placeholder="Your full name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />

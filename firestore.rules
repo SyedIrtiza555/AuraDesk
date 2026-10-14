@@ -2,63 +2,98 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Keep in sync with OWNER_EMAILS in src/shared/userProfile.ts
+    function isOwnerEmail() {
+      return request.auth != null
+        && 'email' in request.auth.token
+        && request.auth.token.email.lower() in ['s.irtizahussain@gmail.com'];
+    }
+
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper functions for user roles
-    function getUserRole() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : (request.auth.token.email.matches('.*shahrukh.*') ? 'owner' : 'unassigned');
+    function hasProfile() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Only active members get role permissions; pending/suspended users get none
+    function hasRole(role) {
+      return hasProfile() && myProfile().status == 'active' && myProfile().role == role;
     }
 
     function isOwner() {
-      return isAuthenticated() && (
-        getUserRole() == 'owner' || 
-        request.auth.token.email.matches('.*shahrukh.*')
-      );
+      return isOwnerEmail() || hasRole('owner');
     }
 
     function isAdmin() {
-      return isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'owner');
+      return isOwner() || hasRole('admin');
     }
 
     function isDesigner() {
-      return isAuthenticated() && getUserRole() == 'designer';
+      return hasRole('designer');
     }
 
     function isSalesAgent() {
-      return isAuthenticated() && getUserRole() == 'sales_agent';
+      return hasRole('sales_agent');
+    }
+
+    function isActiveMember() {
+      return isAdmin() || isDesigner() || isSalesAgent();
+    }
+
+    // Roles an admin may hand out or take away (never owner/admin)
+    function isStaffRole(role) {
+      return role in ['unassigned', 'sales_agent', 'designer'];
     }
 
     // ==========================================
     // 1. Users Collection
     // ==========================================
     match /users/{userId} {
-      // Any authenticated user can read profiles (needed for team lists/display names/checking first user)
-      allow read: if isAuthenticated();
+      // Members see the team; anyone signed in can see their own profile (waiting room)
+      allow read: if isActiveMember() || (isAuthenticated() && request.auth.uid == userId);
 
-      // Allow users to create their initial profile doc upon registration
-      allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Self-registration always starts unassigned + pending, except the configured owner email
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && (
+          (request.resource.data.role == 'unassigned' && request.resource.data.status == 'pending_approval')
+          || (isOwnerEmail() && request.resource.data.role == 'owner' && request.resource.data.status == 'active')
+        );
 
-      // Only Owners can update roles, or users can update their own non-role profile fields
-      allow update: if isOwner() || (isAuthenticated() && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']));
-      allow delete: if isOwner();
+      allow update: if isOwner()
+        // Admins manage staff only, and cannot promote to admin/owner
+        || (isAdmin()
+            && isStaffRole(resource.data.role)
+            && isStaffRole(request.resource.data.role))
+        // Everyone may edit their own non-privileged fields
+        || (isAuthenticated()
+            && request.auth.uid == userId
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'email', 'role', 'status', 'approvedAt', 'approvedBy']));
+
+      // Owners remove members (revokes access); nobody can delete their own profile
+      allow delete: if isOwner() && request.auth.uid != userId;
     }
 
     // ==========================================
     // 2. Orders Collection
     // ==========================================
     match /orders/{orderId} {
-      allow read: if isAdmin() || isSalesAgent() 
+      allow read: if isAdmin() || isSalesAgent()
         || (isDesigner() && resource.data.assigned_designer_id == request.auth.uid);
 
       allow create: if isSalesAgent() || isAdmin();
 
       allow update: if isAdmin()
         || (isSalesAgent() && resource.data.sales_agent_id == request.auth.uid)
-        || (isDesigner() 
+        || (isDesigner()
             && resource.data.assigned_designer_id == request.auth.uid
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['agreed_price', 'client_phone']));
       allow delete: if isOwner();
@@ -77,8 +112,8 @@ service cloud.firestore {
     // 4. Order Snapshots (Time Machine)
     // ==========================================
     match /order_snapshots/{snapshotId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow read: if isActiveMember();
+      allow create, update: if isActiveMember();
     }
   }
 }

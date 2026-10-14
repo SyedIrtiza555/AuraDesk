@@ -6,6 +6,7 @@ import { auth } from '../../shared/firebase';
 export function WaitingRoomView() {
   const currentUser = useUIStore((s) => s.currentUser);
   const setCurrentUser = useUIStore((s) => s.setCurrentUser);
+  const isSuspended = currentUser?.status === 'suspended';
 
   const handleSignOut = () => {
     try {
@@ -24,11 +25,13 @@ export function WaitingRoomView() {
         </div>
 
         <h2 className="text-lg font-semibold text-[#1C1D21] mb-1.5">
-          Registration Pending
+          {isSuspended ? 'Access Suspended' : 'Registration Pending'}
         </h2>
         <p className="text-xs text-[#6B7280] mb-6 leading-relaxed">
           Welcome <strong className="text-[#1C1D21]">{currentUser?.displayName || 'Applicant'}</strong>.
-          Your account is currently waiting for an agency owner to grant role access.
+          {isSuspended
+            ? ' Your account has been suspended. Contact the agency owner to restore access.'
+            : ' Your account is currently waiting for an agency owner to grant role access.'}
         </p>
 
         <div className="bg-white/80 border border-slate-200/60 rounded-2xl p-4 mb-6 text-left space-y-1.5 text-xs">
