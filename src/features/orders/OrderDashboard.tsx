@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { collection, onSnapshot, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from '../../shared/firebase';
-import type { Order, UserProfile } from '../../shared/types';
+import type { Order, OrderStatus, UserProfile } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
 import { Button, Input, Kbd, toast } from '../../shared/ui';
 import { dispatchNativeNotification } from '../../shared/notifications';
 import { isAdminRole, needsAttentionFrom } from '../../shared/orderStatus';
 import { useShortcut } from '../../shared/hooks';
 import { isDemo, DEMO_ORDERS } from '../../shared/demo';
+import { formatOrderNumber, nextSequenceFrom, reserveOrderNumber } from '../../shared/orderNumbers';
 import { OrderDetail } from './OrderDetail';
 import { NewOrderModal } from './NewOrderModal';
 import { SafetyCheckModal } from './SafetyCheckModal';
@@ -17,6 +18,18 @@ import { OrdersHome } from './OrdersHome';
 import { PeoplePanel, ClientsPanel, InvoicesPanel } from './EntityPanels';
 import { TeamMemberList } from '../team/TeamMemberList';
 import { Search, Plus, ShieldCheck } from 'lucide-react';
+
+// Notification titles when an order newly lands on someone (see needsAttentionFrom)
+const INCOMING_TITLE: Record<OrderStatus, string> = {
+  SUBMITTED_TO_ADMIN: 'New order to assign',
+  RETURNED_TO_AGENT: 'Order sent back to you',
+  ASSIGNED_TO_DESIGNER: 'New design assigned to you',
+  IN_PRODUCTION: 'Design approved, back to you',
+  ADMIN_REVIEW: 'Design ready for review',
+  IN_REVISION: 'Changes requested',
+  DELIVERED: 'Delivered, ready to close',
+  COMPLETED: 'Order completed',
+};
 
 const PAGE_COPY: Record<string, { title: string; subtitle: string }> = {
   orders: { title: 'Orders', subtitle: 'Every design job, from intake to delivery.' },
@@ -46,8 +59,16 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
   const canCreate = isAgent || isAdmin;
   const currentUid = currentUser?.uid;
 
+  // Latest profile for the listener below, without resubscribing when the profile doc changes
+  const userRef = useRef(currentUser);
+  useEffect(() => {
+    userRef.current = currentUser;
+  }, [currentUser]);
+
   useEffect(() => {
     if (!currentUid || isDemo) return;
+    // Orders as of the previous snapshot; null until the first one (initial load never notifies)
+    let previous: Map<string, Order> | null = null;
     // Firestore rules only let designers read their own orders, so the query must say so
     const ordersQuery = isDesigner
       ? query(collection(db, 'orders'), where('assigned_designer_id', '==', currentUid))
@@ -60,6 +81,24 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
           list.push(d.data() as Order);
         });
         list.sort((a, b) => b.created_at - a.created_at);
+
+        // Tell this person when work newly lands on them because of someone else's change.
+        // Their own edits arrive as pending local writes and are skipped.
+        if (previous) {
+          const me = userRef.current;
+          for (const change of snapshot.docChanges()) {
+            if (change.type === 'removed' || change.doc.metadata.hasPendingWrites) continue;
+            const order = change.doc.data() as Order;
+            const before = previous.get(order.id);
+            if (needsAttentionFrom(order, me) && !(before && needsAttentionFrom(before, me))) {
+              const title = INCOMING_TITLE[order.status];
+              const body = `${order.orderNumber} · ${order.title}`;
+              toast.info(title, body);
+              dispatchNativeNotification(title, body);
+            }
+          }
+        }
+        previous = new Map(list.map((o) => [o.id, o]));
         setOrders(list);
       },
       (err) => console.warn('[Aura Desk] Firestore orders listener:', err)
@@ -94,12 +133,14 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
 
   const handleCreateOrder = async (orderData: Partial<Order>) => {
     const newId = `ord-${Date.now()}`;
-    const newOrderNumber = `AURA-${new Date().getFullYear()}-${String(orders.length + 1).padStart(3, '0')}`;
+    const known = orders.map((o) => o.orderNumber);
+    const newOrderNumber = isDemo
+      ? formatOrderNumber(nextSequenceFrom(known))
+      : await reserveOrderNumber(known);
     const fullOrder: Order = { ...(orderData as Order), id: newId, orderNumber: newOrderNumber };
 
     setOrders((prev) => [fullOrder, ...prev]);
     toast.success('Order submitted', `${fullOrder.orderNumber} is waiting for an admin to assign a designer.`);
-    await dispatchNativeNotification('Order Landed', `New Order: ${fullOrder.title} submitted by ${fullOrder.sales_agent_name}`);
 
     if (isDemo) return;
     try {
@@ -115,18 +156,10 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
     const targetOrder = selectedOrder || orders.find((o) => o.id === updatedFields.id);
     if (!targetOrder) return;
 
-    const previousStatus = targetOrder.status;
     const merged: Order = { ...targetOrder, ...updatedFields };
 
     setOrders((prev) => prev.map((o) => (o.id === merged.id ? merged : o)));
     if (selectedOrderId === merged.id) setSelectedOrder(merged);
-
-    if (updatedFields.status === 'ASSIGNED_TO_DESIGNER' && previousStatus !== 'ASSIGNED_TO_DESIGNER') {
-      await dispatchNativeNotification('New Assignment', `You have been assigned to ${merged.title}`);
-    }
-    if (updatedFields.status === 'RETURNED_TO_AGENT' && previousStatus !== 'RETURNED_TO_AGENT') {
-      await dispatchNativeNotification('Action Required', `${merged.title} returned to your court`);
-    }
 
     if (isDemo) return;
     try {

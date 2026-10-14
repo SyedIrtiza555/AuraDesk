@@ -110,3 +110,18 @@ describe('dates', () => {
     expect(daysSince(1_000 * DAY, 999 * DAY)).toBe(0);
   });
 });
+
+describe('order numbers', () => {
+  it('formats with year and a padded sequence', async () => {
+    const { formatOrderNumber } = await import('../src/shared/orderNumbers');
+    expect(formatOrderNumber(7, 2026)).toBe('AURA-2026-007');
+    expect(formatOrderNumber(1234, 2026)).toBe('AURA-2026-1234');
+  });
+
+  it('continues after the highest existing number, not the count', async () => {
+    const { nextSequenceFrom } = await import('../src/shared/orderNumbers');
+    expect(nextSequenceFrom([])).toBe(1);
+    expect(nextSequenceFrom(['AURA-2026-003', 'AURA-2026-010', 'AURA-2025-002'])).toBe(11);
+    expect(nextSequenceFrom(['custom', 'AURA-2026-004'])).toBe(5);
+  });
+});

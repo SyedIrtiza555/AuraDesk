@@ -109,7 +109,23 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 4. Order Snapshots (Time Machine)
+    // 4. Order number counter (src/shared/orderNumbers.ts)
+    // ==========================================
+    match /counters/{counterId} {
+      allow read: if isAdmin() || isSalesAgent();
+      allow create: if (isAdmin() || isSalesAgent())
+        && counterId == 'orders'
+        && request.resource.data.keys().hasOnly(['next'])
+        && request.resource.data.next is int;
+      // Only ever moves forward, one reservation at a time
+      allow update: if (isAdmin() || isSalesAgent())
+        && request.resource.data.keys().hasOnly(['next'])
+        && request.resource.data.next is int
+        && request.resource.data.next > resource.data.next;
+    }
+
+    // ==========================================
+    // 5. Order Snapshots (Time Machine)
     // ==========================================
     match /order_snapshots/{snapshotId} {
       allow read: if isActiveMember();
