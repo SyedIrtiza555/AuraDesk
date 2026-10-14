@@ -398,9 +398,33 @@ export function AuthView() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-[#6B7280] mb-1">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[11px] font-medium text-[#6B7280]">
+                Password
+              </label>
+              {!isSignUp && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!email.trim()) {
+                      setError('Please enter your email address above to receive a password reset link.');
+                      return;
+                    }
+                    try {
+                      setError(null);
+                      const { sendPasswordResetEmail } = await import('firebase/auth');
+                      await sendPasswordResetEmail(auth, email.trim());
+                      setError('✓ Password setup/reset link sent to ' + email.trim() + '. Check your inbox to set your password.');
+                    } catch (e: unknown) {
+                      if (e instanceof Error) setError(e.message);
+                    }
+                  }}
+                  className="text-[10px] text-blue-600 hover:underline font-medium"
+                >
+                  Forgot or need to set password?
+                </button>
+              )}
+            </div>
             <Input
               type="password"
               required

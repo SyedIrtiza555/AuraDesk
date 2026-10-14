@@ -1,11 +1,11 @@
 {
-  "pub_date": "2026-10-14T13:13:27Z",
+  "version": "1.0.0",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRSHpOUkZPbFppZGUwOUQ0aWFFaEZKVmFveWZHWUZxaVVMM1FHeWF4YTJzZjVETnF0SW9POWZhOWgxUnpmYUN3eXNCVDJLNDllVzF2UUZkRVh6S1N0Tys3aVU3UUJpaHdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxOTY1NTg2CWZpbGU6QXVyYSBEZXNrXzEuMC4wX3g2NF9lbi1VUy5tc2kJdmVyc2lvbjoxLjAuMApnTmk5WHI2dUI4T2w2M1dOZUMyUDExc1VrY3VlTjdZc3J6bFdJU0wzTFFmL2dDbGl1dW9FY203MTlqVnVBZjV3KzIwa0JjRHBRcC9jc0YwcXFERkxEdz09Cg==",
-      "url": "https://github.com/SyedIrtiza555/AuraDesk/releases/download/v1.0.0/AuraDesk_1.0.0_x64_en-US.msi"
+      "url": "https://github.com/SyedIrtiza555/AuraDesk/releases/download/v1.0.0/AuraDesk_1.0.0_x64_en-US.msi",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRSHpOUkZPbFppZGJVZk52OWE0ZWh0VVI4WnFsQkN2SnBwQ0YrSGdGTXF3QkFJMHFtVXNvN0crd1hYcGh1elFhWDQ5ZFQ5V2I2ZVduWG5YOWhRdlppVXg0L3IrQmdrTXdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxOTY2MDc2CWZpbGU6QXVyYSBEZXNrXzEuMC4wX3g2NF9lbi1VUy5tc2kJdmVyc2lvbjoxLjAuMApaYW5EWWhMTTFhVDVuUWlwYnl6M3RKYUR5YmtRUDFiQmtWMlhMU3VsMThEcEdnMGlsdGVFKzlKbVhaaWF1Q1N4eXlHZnZLSFU1VzZxRmZ1YzBsSVlEUT09Cg=="
     }
   },
-  "notes": "Aura Desk v1.0.0 with Auto-Updater Support, Google/Apple OAuth guidance, and Admin/Owner controls.",
-  "version": "1.0.0"
+  "pub_date": "2026-10-14T13:21:50Z",
+  "notes": "Aura Desk v1.0.0 - Auto-Updater Ready, Instant Password Reset & Owner Role."
 }
