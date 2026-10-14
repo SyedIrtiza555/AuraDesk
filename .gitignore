@@ -15,6 +15,7 @@ src-tauri/target
 users.json
 firebase-debug.log
 .env
+*.key
 
 
 # Editor directories and files

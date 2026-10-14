@@ -7,8 +7,11 @@
   ],
   "permissions": [
     "core:default",
+    "core:webview:allow-create-webview-window",
     "notification:default",
     "clipboard-manager:default",
-    "process:default"
+    "process:default",
+    "process:allow-restart",
+    "updater:default"
   ]
 }

@@ -123,7 +123,11 @@ export function AuthView() {
     } catch (err: unknown) {
       console.error('[Google Sign-In Error]:', err);
       if (err instanceof Error) {
-        if (!err.message.includes('auth/popup-closed-by-user')) {
+        if (err.message.includes('auth/popup-blocked')) {
+          setError(
+            'The OAuth popup was blocked by Windows WebView2 security policies. In native desktop apps, Google blocks embedded browser popups. Please sign in below using your email and password, or use the web workspace.'
+          );
+        } else if (!err.message.includes('auth/popup-closed-by-user')) {
           setError(err.message);
         }
       } else {
@@ -146,7 +150,11 @@ export function AuthView() {
     } catch (err: unknown) {
       console.error('[Apple Sign-In Error]:', err);
       if (err instanceof Error) {
-        if (!err.message.includes('auth/popup-closed-by-user')) {
+        if (err.message.includes('auth/popup-blocked')) {
+          setError(
+            'The OAuth popup was blocked by Windows WebView2 security policies. In native desktop apps, Apple blocks embedded browser popups. Please sign in below using your email and password, or use the web workspace.'
+          );
+        } else if (!err.message.includes('auth/popup-closed-by-user')) {
           setError(err.message);
         }
       } else {
@@ -258,7 +266,9 @@ export function AuthView() {
       if (err instanceof Error) {
         msg = err.message;
         // Translate common Firebase codes into clear human messages
-        if (msg.includes('auth/invalid-email')) {
+        if (msg.includes('auth/popup-blocked')) {
+          msg = 'The OAuth popup was blocked by Windows security. In desktop applications, Google/Apple popups are restricted. Please sign in using your email and password below, or open the web workspace in your browser.';
+        } else if (msg.includes('auth/invalid-email')) {
           msg = 'Invalid email address format (e.g. name@domain.com). Note: ".local" domains may be rejected by Firebase Auth; use a standard domain like @gmail.com or @auradesk.com.';
         } else if (msg.includes('auth/weak-password')) {
           msg = 'Password is too weak. Firebase requires at least 6 characters.';
