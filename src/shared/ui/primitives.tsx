@@ -17,7 +17,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-ink text-white hover:bg-ink-soft',
+  primary: 'bg-ink text-canvas hover:bg-ink-soft',
   accent: 'bg-accent text-white hover:bg-accent-hover',
   secondary: 'bg-surface text-ink border border-line hover:bg-surface-muted shadow-card',
   outline: 'border border-line-strong text-ink hover:bg-surface-muted',
@@ -298,6 +298,8 @@ export interface SegmentOption<T extends string> {
   value: T;
   label: string;
   icon?: React.ComponentType<{ className?: string }>;
+  /** Tooltip, for icon-only segments */
+  title?: string;
 }
 
 export function SegmentedControl<T extends string>({
@@ -324,12 +326,13 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
-            title={opt.label || undefined}
+            title={opt.title ?? (opt.label || undefined)}
+            aria-label={opt.title ?? opt.label}
             onClick={() => onChange(opt.value)}
             className={cn(
               'inline-flex items-center gap-1.5 rounded font-medium transition-colors whitespace-nowrap',
               size === 'sm' ? 'h-6 px-2 text-xs' : 'h-7 px-2.5 text-[13px]',
-              active ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink'
+              active ? 'bg-surface text-ink shadow-card dark:bg-white/[0.09]' : 'text-muted hover:text-ink'
             )}
           >
             {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -386,7 +389,7 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh]">
-      <div className="absolute inset-0 bg-ink/20 animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/25 dark:bg-black/55 animate-fade-in" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"

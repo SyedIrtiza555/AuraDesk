@@ -1,3 +1,5 @@
+// Applies the saved/system theme before the first render
+import './shared/theme';
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, collection, onSnapshot } from 'firebase/firestore';

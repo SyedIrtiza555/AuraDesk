@@ -258,7 +258,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
 
   return (
     <>
-      {peekMode !== 'side' && <div className="fixed inset-0 z-40 bg-ink/20 animate-fade-in" onClick={onClose} />}
+      {peekMode !== 'side' && <div className="fixed inset-0 z-40 bg-black/25 dark:bg-black/55 animate-fade-in" onClick={onClose} />}
 
       <div className={cn(container, 'bg-canvas shadow-pop flex flex-col overflow-hidden')}>
         {/* Header */}
@@ -278,9 +278,9 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
             value={peekMode}
             onChange={setPeekMode}
             options={[
-              { value: 'side', label: '', icon: PanelRight },
-              { value: 'center', label: '', icon: AppWindow },
-              { value: 'full', label: '', icon: Maximize2 },
+              { value: 'side', label: '', title: 'Side panel', icon: PanelRight },
+              { value: 'center', label: '', title: 'Centered', icon: AppWindow },
+              { value: 'full', label: '', title: 'Full screen', icon: Maximize2 },
             ]}
           />
           <IconButton label="Close (Esc)" onClick={onClose}>

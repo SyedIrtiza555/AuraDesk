@@ -55,6 +55,84 @@
   }
 }
 
+/* dark: utilities follow the resolved theme on <html data-theme>, not just the OS setting */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* ==========================================================
+   Dark theme: same tokens, dark values. Set by src/shared/theme.ts
+   on <html data-theme="dark"> (system setting or the sidebar toggle).
+   ========================================================== */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-ink: #ececef;
+  --color-ink-soft: #d4d4d8;
+  --color-ink-muted: #b9b9c0;
+  --color-canvas: #0f0f11;
+  --color-sidebar: #131315;
+  --color-surface: #1b1b1f;
+  --color-surface-muted: #16161a;
+  --color-line: #29292e;
+  --color-line-strong: #38383f;
+  --color-muted: #a1a1aa;
+  --color-faint: #72727b;
+
+  --color-accent: #6d6af7;
+  --color-accent-hover: #807df9;
+  --color-accent-soft: rgb(99 102 241 / 0.16);
+  --color-accent-deep: #a5b4fc;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.45);
+  --shadow-pop: 0 1px 3px rgb(0 0 0 / 0.5), 0 16px 40px -8px rgb(0 0 0 / 0.65);
+
+  /* Pastel status tints (50-200) become translucent washes; dark text shades (700-800) become light */
+  --color-rose-50: color-mix(in oklab, var(--color-rose-500) 13%, transparent);
+  --color-rose-100: color-mix(in oklab, var(--color-rose-500) 22%, transparent);
+  --color-rose-200: color-mix(in oklab, var(--color-rose-500) 34%, transparent);
+  --color-rose-700: var(--color-rose-300);
+  --color-rose-800: var(--color-rose-300);
+  --color-emerald-50: color-mix(in oklab, var(--color-emerald-500) 13%, transparent);
+  --color-emerald-100: color-mix(in oklab, var(--color-emerald-500) 22%, transparent);
+  --color-emerald-200: color-mix(in oklab, var(--color-emerald-500) 34%, transparent);
+  --color-emerald-700: var(--color-emerald-300);
+  --color-emerald-800: var(--color-emerald-300);
+  --color-amber-50: color-mix(in oklab, var(--color-amber-500) 13%, transparent);
+  --color-amber-100: color-mix(in oklab, var(--color-amber-500) 22%, transparent);
+  --color-amber-200: color-mix(in oklab, var(--color-amber-500) 34%, transparent);
+  --color-amber-700: var(--color-amber-300);
+  --color-amber-800: var(--color-amber-300);
+  --color-violet-50: color-mix(in oklab, var(--color-violet-500) 13%, transparent);
+  --color-violet-100: color-mix(in oklab, var(--color-violet-500) 22%, transparent);
+  --color-violet-200: color-mix(in oklab, var(--color-violet-500) 34%, transparent);
+  --color-violet-700: var(--color-violet-300);
+  --color-violet-800: var(--color-violet-300);
+  --color-sky-50: color-mix(in oklab, var(--color-sky-500) 13%, transparent);
+  --color-sky-100: color-mix(in oklab, var(--color-sky-500) 22%, transparent);
+  --color-sky-200: color-mix(in oklab, var(--color-sky-500) 34%, transparent);
+  --color-sky-700: var(--color-sky-300);
+  --color-sky-800: var(--color-sky-300);
+  --color-teal-50: color-mix(in oklab, var(--color-teal-500) 13%, transparent);
+  --color-teal-100: color-mix(in oklab, var(--color-teal-500) 22%, transparent);
+  --color-teal-200: color-mix(in oklab, var(--color-teal-500) 34%, transparent);
+  --color-teal-700: var(--color-teal-300);
+  --color-teal-800: var(--color-teal-300);
+  --color-orange-50: color-mix(in oklab, var(--color-orange-500) 13%, transparent);
+  --color-orange-100: color-mix(in oklab, var(--color-orange-500) 22%, transparent);
+  --color-orange-200: color-mix(in oklab, var(--color-orange-500) 34%, transparent);
+  --color-orange-700: var(--color-orange-300);
+  --color-orange-800: var(--color-orange-300);
+  --color-indigo-50: color-mix(in oklab, var(--color-indigo-500) 13%, transparent);
+  --color-indigo-100: color-mix(in oklab, var(--color-indigo-500) 22%, transparent);
+  --color-indigo-200: color-mix(in oklab, var(--color-indigo-500) 34%, transparent);
+  --color-indigo-700: var(--color-indigo-300);
+  --color-indigo-800: var(--color-indigo-300);
+  --color-fuchsia-50: color-mix(in oklab, var(--color-fuchsia-500) 13%, transparent);
+  --color-fuchsia-100: color-mix(in oklab, var(--color-fuchsia-500) 22%, transparent);
+  --color-fuchsia-200: color-mix(in oklab, var(--color-fuchsia-500) 34%, transparent);
+  --color-fuchsia-700: var(--color-fuchsia-300);
+  --color-fuchsia-800: var(--color-fuchsia-300);
+}
+
 @layer base {
   html,
   body,
