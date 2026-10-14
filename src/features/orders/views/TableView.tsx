@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Order } from '../../../shared/types';
 import { useUIStore } from '../../../shared/store';
-import { Avatar, cn } from '../../../shared/ui';
+import { Avatar, Kbd, cn } from '../../../shared/ui';
 import { copyToClipboard } from '../../../shared/notifications';
 import { useNow } from '../../../shared/hooks';
 import { ALL_STATUSES, StatusPill, dueDateOf, formatMoney, needsAttentionFrom } from '../../../shared/orderStatus';
@@ -62,6 +62,24 @@ export function TableView({ orders }: { orders: Order[] }) {
     });
   }, [orders, sortField, sortAsc]);
 
+  // ↑/↓ moves through the list and opens each order in the detail panel
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (document.querySelector('[role=dialog]') || sortedOrders.length === 0) return;
+      e.preventDefault();
+      const idx = sortedOrders.findIndex((o) => o.id === selectedOrderId);
+      const next =
+        idx < 0 ? 0 : Math.min(sortedOrders.length - 1, Math.max(0, idx + (e.key === 'ArrowDown' ? 1 : -1)));
+      setSelectedOrder(sortedOrders[next]);
+      document.getElementById(`order-row-${sortedOrders[next].id}`)?.scrollIntoView({ block: 'nearest' });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sortedOrders, selectedOrderId, setSelectedOrder]);
+
   const handleCopy = async (e: React.MouseEvent, text: string) => {
     e.stopPropagation();
     await copyToClipboard(text);
@@ -94,7 +112,8 @@ export function TableView({ orders }: { orders: Order[] }) {
               return (
                 <tr
                   key={order.id}
-                  onClick={() => setSelectedOrder(order, 'side')}
+                  id={`order-row-${order.id}`}
+                  onClick={() => setSelectedOrder(order)}
                   className={cn(
                     'group border-b border-line/70 last:border-0 cursor-pointer transition-colors',
                     isSelected ? 'bg-accent-soft/60' : 'hover:bg-surface-muted'
@@ -148,6 +167,15 @@ export function TableView({ orders }: { orders: Order[] }) {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="h-8 shrink-0 px-4 border-t border-line flex items-center justify-between text-[11px] text-faint">
+        <span>
+          {sortedOrders.length} order{sortedOrders.length === 1 ? '' : 's'}
+        </span>
+        <span className="flex items-center gap-1">
+          <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd> to browse · <Kbd>Esc</Kbd> to close
+        </span>
       </div>
     </div>
   );

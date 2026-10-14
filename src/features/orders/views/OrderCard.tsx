@@ -33,20 +33,16 @@ export function OrderCard({
     <div
       draggable={draggable}
       onDragStart={onDragStart}
-      onClick={() => setSelectedOrder(order, 'side')}
+      onClick={() => setSelectedOrder(order)}
       className={cn(
         'group relative p-2.5 rounded-md bg-surface border cursor-pointer transition-colors hover:border-line-strong',
         isSelected ? 'border-accent ring-2 ring-accent/15' : mine ? 'border-accent/40' : 'border-line',
         draggable && 'active:cursor-grabbing'
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold text-faint tabular-nums">{order.orderNumber}</span>
-        {mine && (
-          <span className="text-[10px] font-bold uppercase tracking-wide text-accent-deep bg-accent-soft px-1.5 py-0.5 rounded">
-            Your move
-          </span>
-        )}
+      <div className="flex items-center gap-1.5 text-[11px] text-faint tabular-nums">
+        {mine && <span className="w-1.5 h-1.5 rounded-full bg-accent" title="Waiting on you" />}
+        {order.orderNumber}
       </div>
 
       <h4 className="mt-0.5 text-[13px] font-medium text-ink leading-snug line-clamp-2">{order.title}</h4>

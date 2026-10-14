@@ -22,7 +22,7 @@ export function CardsGridView({ orders }: { orders: Order[] }) {
           return (
             <button
               key={order.id}
-              onClick={() => setSelectedOrder(order, 'side')}
+              onClick={() => setSelectedOrder(order)}
               className={cn(
                 'group relative text-left bg-surface rounded-lg border overflow-hidden flex flex-col transition-all hover:border-line-strong',
                 isSelected ? 'border-accent ring-2 ring-accent/15' : mine ? 'border-accent/40' : 'border-line'

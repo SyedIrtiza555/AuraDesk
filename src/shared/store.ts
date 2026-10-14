@@ -70,6 +70,19 @@ interface UIState {
   setStatusFilter: (filter: OrderStatus | 'ALL') => void;
 }
 
+// Per-device layout preferences (view, sidebar, detail panel mode). Best-effort only.
+const PREFS_KEY = 'aura-desk:prefs';
+type Prefs = Partial<Pick<UIState, 'activeViewMode' | 'isLeftSidebarOpen' | 'peekMode'>>;
+
+function loadPrefs(): Prefs {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') as Prefs;
+  } catch {
+    return {};
+  }
+}
+const prefs = loadPrefs();
+
 export const useUIStore = create<UIState>((set) => ({
   currentUser: isDemo ? demoUser() : null,
   setCurrentUser: (user) => set({ currentUser: user }),
@@ -77,11 +90,11 @@ export const useUIStore = create<UIState>((set) => ({
   setAuthNotice: (notice) => set({ authNotice: notice }),
 
   // Multi-View Mode (Default: Table view)
-  activeViewMode: 'table',
+  activeViewMode: prefs.activeViewMode ?? 'table',
   setActiveViewMode: (mode) => set({ activeViewMode: mode }),
 
   // Dual Collapsible Sidebars
-  isLeftSidebarOpen: true,
+  isLeftSidebarOpen: prefs.isLeftSidebarOpen ?? true,
   toggleLeftSidebar: () => set((s) => ({ isLeftSidebarOpen: !s.isLeftSidebarOpen })),
   setLeftSidebarOpen: (open) => set({ isLeftSidebarOpen: open }),
 
@@ -96,13 +109,14 @@ export const useUIStore = create<UIState>((set) => ({
   // Selected Order & Peek Presentation
   selectedOrderId: null,
   selectedOrder: null,
-  peekMode: 'side',
-  setSelectedOrder: (order, peek = 'side') =>
-    set({
+  peekMode: prefs.peekMode ?? 'side',
+  // Opens in the last-used panel mode unless one is given
+  setSelectedOrder: (order, peek) =>
+    set((s) => ({
       selectedOrder: order,
       selectedOrderId: order ? order.id : null,
-      peekMode: peek,
-    }),
+      peekMode: peek ?? s.peekMode,
+    })),
   setPeekMode: (peek) => set({ peekMode: peek }),
 
   isDeliveryModalOpen: false,
@@ -132,3 +146,22 @@ export const useUIStore = create<UIState>((set) => ({
   statusFilter: 'ALL',
   setStatusFilter: (filter) => set({ statusFilter: filter }),
 }));
+
+useUIStore.subscribe((state, prev) => {
+  if (
+    state.activeViewMode === prev.activeViewMode &&
+    state.isLeftSidebarOpen === prev.isLeftSidebarOpen &&
+    state.peekMode === prev.peekMode
+  )
+    return;
+  try {
+    const next: Prefs = {
+      activeViewMode: state.activeViewMode,
+      isLeftSidebarOpen: state.isLeftSidebarOpen,
+      peekMode: state.peekMode,
+    };
+    localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+  } catch {
+    // Storage unavailable (private mode, quota): preferences just won't persist
+  }
+});

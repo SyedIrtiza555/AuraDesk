@@ -28,3 +28,6 @@ firebase-debug.log
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code local settings and session worktrees
+.claude/

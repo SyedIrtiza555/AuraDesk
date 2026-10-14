@@ -7,6 +7,7 @@ import { STATUS_META, dueDateOf } from '../../../shared/orderStatus';
 import { ChevronLeft, ChevronRight, CalendarClock, History } from 'lucide-react';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MAX_PER_DAY = 2;
 
 /** Due dates, or what happened when (created / delivered / completed). */
 type Mode = 'due' | 'milestones';
@@ -19,6 +20,7 @@ export function CalendarView({ orders }: { orders: Order[] }) {
   const now = useNow();
 
   const [mode, setMode] = useState<Mode>('due');
+  const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -103,14 +105,14 @@ export function CalendarView({ orders }: { orders: Order[] }) {
                   {day}
                 </span>
               )}
-              <div className="space-y-1 overflow-y-auto scrollbar-thin">
-                {dayOrders.map((o) => (
+              <div className="space-y-0.5">
+                {(expandedDay === day ? dayOrders : dayOrders.slice(0, MAX_PER_DAY)).map((o) => (
                   <button
                     key={o.id}
-                    onClick={() => setSelectedOrder(o, 'side')}
+                    onClick={() => setSelectedOrder(o)}
                     title={`${o.orderNumber} · ${STATUS_META[o.status].label}`}
                     className={cn(
-                      'w-full text-left flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs transition-colors',
+                      'w-full text-left flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] transition-colors',
                       selectedOrderId === o.id ? 'bg-accent text-white' : 'bg-surface-muted hover:bg-accent-soft text-ink'
                     )}
                   >
@@ -118,6 +120,15 @@ export function CalendarView({ orders }: { orders: Order[] }) {
                     <span className="truncate">{o.title}</span>
                   </button>
                 ))}
+                {dayOrders.length > MAX_PER_DAY && (
+                  <button
+                    onClick={() => setExpandedDay(expandedDay === day ? null : day)}
+                    title={dayOrders.slice(MAX_PER_DAY).map((o) => o.title).join('\n')}
+                    className="w-full text-left px-1.5 text-[11px] text-muted hover:text-accent"
+                  >
+                    {expandedDay === day ? 'Show less' : `+${dayOrders.length - MAX_PER_DAY} more`}
+                  </button>
+                )}
               </div>
             </div>
           );

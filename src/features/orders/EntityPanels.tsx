@@ -123,7 +123,7 @@ export function ClientsPanel({ orders }: { orders: Order[] }) {
               {list.slice(0, 3).map((o) => (
                 <button
                   key={o.id}
-                  onClick={() => setSelectedOrder(o, 'side')}
+                  onClick={() => setSelectedOrder(o)}
                   className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 bg-surface-muted hover:bg-accent-soft text-left transition-colors"
                 >
                   <span className="flex-1 min-w-0 text-[13px] text-ink truncate">{o.title}</span>
@@ -174,7 +174,7 @@ export function InvoicesPanel({ orders }: { orders: Order[] }) {
         {list.map((o) => (
           <button
             key={o.id}
-            onClick={() => setSelectedOrder(o, 'side')}
+            onClick={() => setSelectedOrder(o)}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-muted transition-colors"
           >
             <div className="w-7 h-7 rounded-md bg-surface-muted flex items-center justify-center text-muted shrink-0">
