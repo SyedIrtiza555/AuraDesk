@@ -2,7 +2,7 @@ import type React from 'react';
 import { useUIStore } from '../../shared/store';
 import { auth } from '../../shared/firebase';
 import type { ActiveEntity } from '../../shared/types';
-import { Avatar, IconButton, Logo, LogoMark, SegmentedControl, cn, type SegmentOption } from '../../shared/ui';
+import { Avatar, IconButton, Logo, LogoMark, cn } from '../../shared/ui';
 import { useTheme, type ThemePreference } from '../../shared/theme';
 import { useUpdater } from '../layout/UpdateNotifier';
 import {
@@ -40,10 +40,11 @@ interface NavItem {
   highlight?: number;
 }
 
-const THEME_OPTIONS: (SegmentOption<ThemePreference> & { title: string; icon: React.ComponentType<{ className?: string }> })[] = [
-  { value: 'system', label: '', title: 'Match system', icon: Monitor },
-  { value: 'light', label: '', title: 'Light', icon: Sun },
-  { value: 'dark', label: '', title: 'Dark', icon: Moon },
+// The theme button cycles Light -> Dark -> Match system
+const THEME_OPTIONS: { value: ThemePreference; title: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'light', title: 'Light', icon: Sun },
+  { value: 'dark', title: 'Dark', icon: Moon },
+  { value: 'system', title: 'Match system', icon: Monitor },
 ];
 
 const ROLE_LABEL: Record<string, string> = {
@@ -62,11 +63,6 @@ export function LeftSidebar(props: LeftSidebarProps) {
   const currentUser = useUIStore((s) => s.currentUser);
   const setCurrentUser = useUIStore((s) => s.setCurrentUser);
   const checkForUpdates = useUpdater((s) => s.check);
-  const themePreference = useTheme((s) => s.preference);
-  const setThemePreference = useTheme((s) => s.setPreference);
-  const themeIndex = THEME_OPTIONS.findIndex((o) => o.value === themePreference);
-  const currentTheme = THEME_OPTIONS[themeIndex];
-  const nextTheme = THEME_OPTIONS[(themeIndex + 1) % THEME_OPTIONS.length];
 
   const isDesigner = currentUser?.role === 'designer';
   const isAdminOrOwner = currentUser?.role === 'admin' || currentUser?.role === 'owner';
@@ -186,22 +182,14 @@ export function LeftSidebar(props: LeftSidebarProps) {
                 <div className="text-[13px] font-medium text-ink truncate">{currentUser?.displayName}</div>
                 <div className="text-[11px] text-muted">{ROLE_LABEL[currentUser?.role ?? 'unassigned']}</div>
               </div>
+              <ThemeButton />
               <IconButton label="Sign out" size="sm" onClick={handleSignOut}>
                 <LogOut className="w-3.5 h-3.5" />
               </IconButton>
             </div>
-            <div className="mt-0.5 flex items-center gap-2 h-8 px-2 text-xs text-muted">
-              <span className="flex-1">Theme</span>
-              <SegmentedControl
-                size="sm"
-                value={themePreference}
-                onChange={setThemePreference}
-                options={THEME_OPTIONS}
-              />
-            </div>
             <button
               onClick={() => checkForUpdates(true)}
-              className="w-full flex items-center gap-2 h-7 px-2 rounded-md text-xs text-muted hover:text-ink hover:bg-ink/[0.04] transition-colors"
+              className="mt-0.5 w-full flex items-center gap-2 h-7 px-2 rounded-md text-xs text-muted hover:text-ink hover:bg-ink/[0.04] transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span className="flex-1 text-left">Check for updates</span>
@@ -211,13 +199,7 @@ export function LeftSidebar(props: LeftSidebarProps) {
         ) : (
           <>
             <Avatar name={currentUser?.displayName} initials={currentUser?.initials} size="sm" />
-            <IconButton
-              label={`Theme: ${currentTheme.title} (click to change)`}
-              size="sm"
-              onClick={() => setThemePreference(nextTheme.value)}
-            >
-              <currentTheme.icon className="w-3.5 h-3.5" />
-            </IconButton>
+            <ThemeButton />
             <IconButton label="Check for updates" size="sm" onClick={() => checkForUpdates(true)}>
               <RefreshCw className="w-3.5 h-3.5" />
             </IconButton>
@@ -228,5 +210,23 @@ export function LeftSidebar(props: LeftSidebarProps) {
         )}
       </div>
     </aside>
+  );
+}
+
+function ThemeButton() {
+  const preference = useTheme((s) => s.preference);
+  const setPreference = useTheme((s) => s.setPreference);
+  const index = Math.max(0, THEME_OPTIONS.findIndex((o) => o.value === preference));
+  const current = THEME_OPTIONS[index];
+  const next = THEME_OPTIONS[(index + 1) % THEME_OPTIONS.length];
+  const Icon = current.icon;
+  return (
+    <IconButton
+      label={`Theme: ${current.title}. Click for ${next.title.toLowerCase()}`}
+      size="sm"
+      onClick={() => setPreference(next.value)}
+    >
+      <Icon className="w-3.5 h-3.5" />
+    </IconButton>
   );
 }

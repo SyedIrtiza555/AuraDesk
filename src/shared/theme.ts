@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-/** What the person picked. "system" follows the OS light/dark setting. */
+/** What the person picked. Light is the default; "system" follows the OS light/dark setting. */
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -10,9 +10,9 @@ const media = window.matchMedia('(prefers-color-scheme: dark)');
 function readPreference(): ThemePreference {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return value === 'dark' || value === 'system' ? value : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 
@@ -39,8 +39,7 @@ export const useTheme = create<ThemeState>((set) => ({
   resolved: resolve(initial),
   setPreference: (preference) => {
     try {
-      if (preference === 'system') localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, preference);
+      localStorage.setItem(STORAGE_KEY, preference);
     } catch {
       // Storage unavailable: the choice lasts for this session only
     }
