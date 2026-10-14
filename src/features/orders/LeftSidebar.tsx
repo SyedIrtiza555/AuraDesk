@@ -1,25 +1,31 @@
+import type React from 'react';
 import { useUIStore } from '../../shared/store';
 import { auth } from '../../shared/firebase';
 import type { ActiveEntity } from '../../shared/types';
+import { Avatar, IconButton, Logo, LogoMark, cn } from '../../shared/ui';
+import { useUpdater } from '../layout/UpdateNotifier';
 import {
-  FolderKanban,
+  LayoutDashboard,
   Palette,
   Briefcase,
-  Users,
+  Contact,
   Receipt,
+  ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
-  Shield,
+  RefreshCw,
 } from 'lucide-react';
 
 interface LeftSidebarProps {
   orderCount: number;
+  attentionCount: number;
   designerCount: number;
   agentCount: number;
   prospectCount: number;
   invoiceCount: number;
-  teamCount?: number;
+  teamCount: number;
+  pendingCount: number;
 }
 
 interface NavItem {
@@ -27,224 +33,175 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   count: number;
+  highlight?: number;
 }
 
-export function LeftSidebar({
-  orderCount,
-  designerCount,
-  agentCount,
-  prospectCount,
-  invoiceCount,
-  teamCount = 0,
-}: LeftSidebarProps) {
-  const isLeftSidebarOpen = useUIStore((s) => s.isLeftSidebarOpen);
-  const toggleLeftSidebar = useUIStore((s) => s.toggleLeftSidebar);
+const ROLE_LABEL: Record<string, string> = {
+  owner: 'Owner',
+  admin: 'Admin',
+  sales_agent: 'Sales agent',
+  designer: 'Designer',
+  unassigned: 'Pending',
+};
+
+export function LeftSidebar(props: LeftSidebarProps) {
+  const isOpen = useUIStore((s) => s.isLeftSidebarOpen);
+  const toggle = useUIStore((s) => s.toggleLeftSidebar);
   const activeEntity = useUIStore((s) => s.activeEntity);
   const setActiveEntity = useUIStore((s) => s.setActiveEntity);
   const currentUser = useUIStore((s) => s.currentUser);
   const setCurrentUser = useUIStore((s) => s.setCurrentUser);
-  const openTeamModal = useUIStore((s) => s.openTeamModal);
+  const checkForUpdates = useUpdater((s) => s.check);
 
   const isDesigner = currentUser?.role === 'designer';
   const isAdminOrOwner = currentUser?.role === 'admin' || currentUser?.role === 'owner';
 
   const handleSignOut = () => {
-    try {
-      auth.signOut();
-    } catch (e) {
-      console.warn(e);
-    }
+    auth.signOut().catch((e) => console.warn(e));
     setCurrentUser(null);
   };
 
-  const navItems: NavItem[] = [
-    { id: 'orders', label: 'Orders', icon: FolderKanban, count: orderCount },
-    { id: 'designers', label: 'Designers', icon: Palette, count: designerCount },
-    { id: 'agents', label: 'Sales Agents', icon: Briefcase, count: agentCount },
-    { id: 'prospects', label: 'Prospects', icon: Users, count: prospectCount },
+  const sections: { title: string; items: NavItem[] }[] = [
+    {
+      title: 'Workspace',
+      items: [{ id: 'orders', label: 'Orders', icon: LayoutDashboard, count: props.orderCount, highlight: props.attentionCount }],
+    },
+    {
+      title: 'People',
+      items: [
+        { id: 'designers', label: 'Designers', icon: Palette, count: props.designerCount },
+        { id: 'agents', label: 'Sales agents', icon: Briefcase, count: props.agentCount },
+        { id: 'prospects', label: 'Clients', icon: Contact, count: props.prospectCount },
+      ],
+    },
     ...(!isDesigner
-      ? [{ id: 'invoices' as ActiveEntity, label: 'Invoices', icon: Receipt, count: invoiceCount }]
+      ? [{ title: 'Finance', items: [{ id: 'invoices' as ActiveEntity, label: 'Invoices', icon: Receipt, count: props.invoiceCount }] }]
       : []),
     ...(isAdminOrOwner
-      ? [{ id: 'team' as ActiveEntity, label: 'Team & Roles', icon: Shield, count: teamCount }]
+      ? [
+          {
+            title: 'Admin',
+            items: [
+              { id: 'team' as ActiveEntity, label: 'Team & roles', icon: ShieldCheck, count: props.teamCount, highlight: props.pendingCount },
+            ],
+          },
+        ]
       : []),
   ];
 
-  if (!isLeftSidebarOpen) {
-    return (
-      <aside className="w-14 bg-white/70 border-r border-slate-200/60 flex flex-col items-center py-4 justify-between shrink-0 select-none backdrop-blur-md">
-        <div className="flex flex-col items-center gap-4">
-          <button
-            onClick={toggleLeftSidebar}
-            title="Expand Sidebar"
-            className="p-2 text-slate-400 hover:text-[#1C1D21] rounded-xl hover:bg-slate-100 transition-colors"
-          >
-            <PanelLeftOpen className="w-4 h-4" />
-          </button>
-
-          <div className="flex flex-col gap-1.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeEntity === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveEntity(item.id);
-                    toggleLeftSidebar();
-                  }}
-                  title={item.label}
-                  className={`p-2.5 rounded-xl transition-all ${
-                    isActive
-                      ? 'bg-[#1C1D21] text-white shadow-xs'
-                      : 'text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Compact bottom profile */}
-        <div className="flex flex-col items-center gap-2">
-          {currentUser && (
-            <div
-              title={`${currentUser.displayName} (${currentUser.role})`}
-              className="w-7 h-7 rounded-full bg-[#1C1D21] text-white flex items-center justify-center text-[10px] font-bold font-mono"
-            >
-              {currentUser.initials || currentUser.displayName.slice(0, 2).toUpperCase()}
-            </div>
-          )}
-          <button
-            onClick={handleSignOut}
-            title="Sign Out"
-            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="w-56 bg-white/80 border-r border-slate-200/60 flex flex-col shrink-0 select-none backdrop-blur-xl">
-      {/* Brand header */}
-      <div className="p-4 border-b border-slate-200/60 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-xl bg-[#1C1D21] flex items-center justify-center text-white font-mono text-[11px] font-bold">
-            AD
-          </div>
-          <span className="font-semibold text-xs tracking-tight text-[#1C1D21]">
-            Aura Desk
-          </span>
-        </div>
-        <button
-          onClick={toggleLeftSidebar}
-          title="Collapse"
-          className="p-1 text-slate-400 hover:text-[#1C1D21] rounded-lg transition-colors"
-        >
-          <PanelLeftClose className="w-4 h-4" />
-        </button>
-      </div>
+    <aside
+      className={cn(
+        'relative h-full bg-ink text-white flex flex-col shrink-0 transition-[width] duration-200 overflow-hidden',
+        isOpen ? 'w-[244px]' : 'w-[68px]'
+      )}
+    >
+      <div className="absolute -top-24 -left-20 w-56 h-56 rounded-full bg-aura/15 blur-3xl pointer-events-none" />
 
-      {/* Entity Navigation List */}
-      <div className="p-3 space-y-1 flex-1 overflow-y-auto">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 px-2 py-1 font-semibold">
-          Entities
-        </div>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeEntity === item.id;
-
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveEntity(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                isActive
-                  ? 'bg-[#1C1D21] text-white shadow-xs'
-                  : 'text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <Icon className="w-3.5 h-3.5" />
-                <span>{item.label}</span>
-              </div>
-              <span
-                className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                {item.count}
-              </span>
-            </button>
-          );
-        })}
-
-        {/* Admin / Owner Governance Console button inside sidebar */}
-        {isAdminOrOwner && (
-          <div className="pt-2 space-y-1">
-            <button
-              onClick={openTeamModal}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80 transition-colors cursor-pointer"
-            >
-              <Shield className="w-3.5 h-3.5 text-slate-400" />
-              <span>Team & Auth Settings</span>
-            </button>
-
-            <button
-              onClick={async () => {
-                try {
-                  const { check } = await import('@tauri-apps/plugin-updater');
-                  const update = await check();
-                  if (update) {
-                    alert(`Update v${update.version} is available! Click the update prompt at the top right to install.`);
-                  } else {
-                    alert('You are on the latest version of Aura Desk (v1.0.0).');
-                  }
-                } catch (e: unknown) {
-                  alert(e instanceof Error ? e.message : 'Could not check for updates');
-                }
-              }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80 transition-colors cursor-pointer"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Check for Updates</span>
-            </button>
-          </div>
+      {/* Brand */}
+      <div className={cn('relative flex items-center h-16 shrink-0', isOpen ? 'px-4 justify-between' : 'justify-center')}>
+        {isOpen ? <Logo inverse /> : <LogoMark />}
+        {isOpen && (
+          <IconButton label="Collapse sidebar" tone="inverse" size="sm" onClick={toggle}>
+            <PanelLeftClose className="w-4 h-4" />
+          </IconButton>
         )}
       </div>
 
-      {/* Profile & Logout in the bottom of the left sidebar */}
-      <div className="p-3 border-t border-slate-200/60 bg-white/40">
-        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/60">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-7 h-7 rounded-full bg-[#1C1D21] text-white flex items-center justify-center text-[10px] font-bold font-mono shrink-0">
-              {currentUser?.initials ||
-                currentUser?.displayName?.slice(0, 2).toUpperCase() ||
-                'AD'}
-            </div>
-            <div className="overflow-hidden">
-              <div className="text-xs font-medium text-[#1C1D21] truncate">
-                {currentUser?.displayName}
+      {!isOpen && (
+        <div className="flex justify-center pb-2">
+          <IconButton label="Expand sidebar" tone="inverse" size="sm" onClick={toggle}>
+            <PanelLeftOpen className="w-4 h-4" />
+          </IconButton>
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className={cn('relative flex-1 overflow-y-auto scrollbar-thin pb-4', isOpen ? 'px-3' : 'px-2.5')}>
+        {sections.map((section) => (
+          <div key={section.title} className="mt-4 first:mt-1">
+            {isOpen ? (
+              <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/35">
+                {section.title}
               </div>
-              <div className="text-[10px] font-mono uppercase text-[#6B7280] truncate">
-                {currentUser?.role?.replace('_', ' ')}
-              </div>
+            ) : (
+              <div className="mx-3 mb-2 h-px bg-white/10" />
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const active = activeEntity === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveEntity(item.id)}
+                    title={isOpen ? undefined : item.label}
+                    className={cn(
+                      'relative w-full flex items-center rounded-xl text-[13.5px] font-medium transition-colors',
+                      isOpen ? 'h-10 px-3 gap-3' : 'h-11 justify-center',
+                      active ? 'bg-aura text-ink' : 'text-white/65 hover:text-white hover:bg-white/[0.07]'
+                    )}
+                  >
+                    <Icon className="w-[18px] h-[18px] shrink-0" />
+                    {isOpen && <span className="flex-1 text-left truncate">{item.label}</span>}
+                    {isOpen && item.highlight ? (
+                      <span
+                        className={cn(
+                          'min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center',
+                          active ? 'bg-ink text-aura' : 'bg-copper text-white'
+                        )}
+                        title="Needs attention"
+                      >
+                        {item.highlight}
+                      </span>
+                    ) : isOpen ? (
+                      <span className={cn('text-xs tabular-nums', active ? 'text-ink/60' : 'text-white/35')}>{item.count}</span>
+                    ) : null}
+                    {!isOpen && item.highlight ? (
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-copper ring-2 ring-ink" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </div>
+        ))}
+      </nav>
 
-          <button
-            onClick={handleSignOut}
-            title="Sign Out"
-            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      {/* Account */}
+      <div className={cn('relative border-t border-white/10 shrink-0', isOpen ? 'p-3' : 'py-3 flex flex-col items-center gap-1')}>
+        {isOpen ? (
+          <>
+            <div className="flex items-center gap-2.5 px-1.5 py-1">
+              <Avatar name={currentUser?.displayName} initials={currentUser?.initials} size="md" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate">{currentUser?.displayName}</div>
+                <div className="text-xs text-white/45">{ROLE_LABEL[currentUser?.role ?? 'unassigned']}</div>
+              </div>
+              <IconButton label="Sign out" tone="inverse" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4" />
+              </IconButton>
+            </div>
+            <button
+              onClick={() => checkForUpdates(true)}
+              className="mt-1.5 w-full flex items-center gap-2 h-8 px-2.5 rounded-lg text-xs text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="flex-1 text-left">Check for updates</span>
+              <span className="tabular-nums">v{__APP_VERSION__}</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <Avatar name={currentUser?.displayName} initials={currentUser?.initials} size="sm" />
+            <IconButton label="Check for updates" tone="inverse" size="sm" onClick={() => checkForUpdates(true)}>
+              <RefreshCw className="w-3.5 h-3.5" />
+            </IconButton>
+            <IconButton label="Sign out" tone="inverse" size="sm" onClick={handleSignOut}>
+              <LogOut className="w-4 h-4" />
+            </IconButton>
+          </>
+        )}
       </div>
     </aside>
   );

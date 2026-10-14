@@ -1,29 +1,40 @@
 import { useState, useEffect } from 'react';
+import type React from 'react';
 import type { Order, UserProfile, OrderStatus } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
-import { Badge, Button } from '../../shared/ui';
+import { Avatar, Button, IconButton, SegmentedControl, Select, SectionLabel, cn } from '../../shared/ui';
 import { copyToClipboard } from '../../shared/notifications';
+import {
+  PIPELINE,
+  STATUS_META,
+  StatusPill,
+  isAdminRole,
+  needsAttentionFrom,
+} from '../../shared/orderStatus';
 import { TimeMachineSlider } from './TimeMachineSlider';
 import { InvoicePanel } from '../invoices/InvoicePanel';
 import {
   X,
   Copy,
   Check,
-  User,
   Phone,
   DollarSign,
   Send,
   MessageSquare,
   Play,
   RotateCcw,
-  CheckCircle,
+  CheckCircle2,
   Truck,
   AlertTriangle,
-  PanelRightClose,
+  PanelRight,
   AppWindow,
   Maximize2,
-  Calendar,
-  History,
+  CalendarDays,
+  Lock,
+  Sparkles,
+  Undo2,
+  FileText,
+  Users,
 } from 'lucide-react';
 
 interface OrderDetailProps {
@@ -33,112 +44,124 @@ interface OrderDetailProps {
   onClose: () => void;
 }
 
-export function OrderDetail({
-  order,
-  teamUsers,
-  onUpdateOrder,
-  onClose,
-}: OrderDetailProps) {
+const toDateInput = (order: Order) =>
+  new Date(order.due_date ?? order.created_at + 86400000 * 5).toISOString().split('T')[0];
+
+/** Text input that looks like plain text until hovered/focused; saves on blur. */
+function InlineInput({
+  value,
+  onChange,
+  onCommit,
+  disabled,
+  className,
+  ...rest
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> & {
+  value: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+}) {
+  return (
+    <input
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onCommit}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      className={cn(
+        'w-full bg-transparent rounded-lg px-2 -mx-2 py-1 transition-colors focus:outline-none',
+        !disabled && 'hover:bg-ink/[0.04] focus:bg-surface focus:ring-2 focus:ring-aura',
+        className
+      )}
+      {...rest}
+    />
+  );
+}
+
+export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderDetailProps) {
   const currentUser = useUIStore((s) => s.currentUser);
   const peekMode = useUIStore((s) => s.peekMode);
   const setPeekMode = useUIStore((s) => s.setPeekMode);
   const openDeliveryModal = useUIStore((s) => s.openDeliveryModal);
   const openEscalateModal = useUIStore((s) => s.openEscalateModal);
 
-  const [copiedId, setCopiedId] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [revisionText, setRevisionText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Directly editable fields with instant auto-save on blur / change
-  const [orderNumber, setOrderNumber] = useState(order.orderNumber);
-  const [title, setTitle] = useState(order.title);
-  const [clientName, setClientName] = useState(order.client_name);
-  const [clientPhone, setClientPhone] = useState(order.client_phone || '');
-  const [agreedPrice, setAgreedPrice] = useState(String(order.agreed_price || ''));
-  const [projectBrief, setProjectBrief] = useState(order.project_brief);
-  const [dueDate, setDueDate] = useState(
-    order.due_date
-      ? new Date(order.due_date).toISOString().split('T')[0]
-      : new Date(order.created_at + 86400000 * 5).toISOString().split('T')[0]
-  );
-  const [assignedDesignerId, setAssignedDesignerId] = useState(
-    order.assigned_designer_id || ''
-  );
-  const [salesAgentId, setSalesAgentId] = useState(order.sales_agent_id || '');
+  // Local drafts of editable fields; re-seeded whenever a different order (or a server update) arrives
+  const [draft, setDraft] = useState(() => ({
+    title: order.title,
+    client_name: order.client_name,
+    client_phone: order.client_phone || '',
+    agreed_price: String(order.agreed_price || ''),
+    project_brief: order.project_brief,
+    due: toDateInput(order),
+  }));
+  const [draftFor, setDraftFor] = useState(order);
+  if (draftFor !== order) {
+    setDraftFor(order);
+    setDraft({
+      title: order.title,
+      client_name: order.client_name,
+      client_phone: order.client_phone || '',
+      agreed_price: String(order.agreed_price || ''),
+      project_brief: order.project_brief,
+      due: toDateInput(order),
+    });
+  }
+  const set = (key: keyof typeof draft) => (v: string) => setDraft((d) => ({ ...d, [key]: v }));
 
-  // Keep state synced with incoming order prop
   useEffect(() => {
-    setOrderNumber(order.orderNumber);
-    setTitle(order.title);
-    setClientName(order.client_name);
-    setClientPhone(order.client_phone || '');
-    setAgreedPrice(String(order.agreed_price || ''));
-    setProjectBrief(order.project_brief);
-    setDueDate(
-      order.due_date
-        ? new Date(order.due_date).toISOString().split('T')[0]
-        : new Date(order.created_at + 86400000 * 5).toISOString().split('T')[0]
-    );
-    setAssignedDesignerId(order.assigned_designer_id || '');
-    setSalesAgentId(order.sales_agent_id || '');
-  }, [order]);
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === 'Escape' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const isDesigner = currentUser?.role === 'designer';
-  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'owner';
+  const isAdmin = isAdminRole(currentUser?.role);
   const isAgent = currentUser?.role === 'sales_agent';
+  const canEdit = !isDesigner;
+  const mine = needsAttentionFrom(order, currentUser);
+  const meta = STATUS_META[order.status];
 
-  const availableDesigners = teamUsers.filter(
-    (u) => u.role === 'designer' && u.status === 'active'
-  );
-  const availableAgents = teamUsers.filter(
-    (u) => u.role === 'sales_agent' && u.status === 'active'
-  );
+  const designers = teamUsers.filter((u) => u.role === 'designer' && u.status === 'active');
+  const agents = teamUsers.filter((u) => u.role === 'sales_agent' && u.status === 'active');
 
-  // Instant inline persistence helper without needing 'edit' or 'save' button
-  const triggerAutoSave = async (fieldsToUpdate: Partial<Order>) => {
-    try {
-      await onUpdateOrder({
-        ...fieldsToUpdate,
-        updated_at: Date.now(),
-      });
-    } catch (err) {
-      console.warn('Auto-save error:', err);
-    }
+  const save = (fields: Partial<Order>) => onUpdateOrder({ ...fields, updated_at: Date.now() });
+
+  const commit = (key: keyof Order, value: string | number | undefined) => {
+    if (order[key] === value) return;
+    save({ [key]: value } as Partial<Order>);
   };
 
-  const handleCopyCode = async (text: string) => {
-    await copyToClipboard(text);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
+  const handleCopyCode = async () => {
+    await copyToClipboard(order.orderNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleDesignerSelect = async (newDesignerId: string) => {
-    setAssignedDesignerId(newDesignerId);
-    const designer = availableDesigners.find((d) => d.uid === newDesignerId);
-    await triggerAutoSave({
+  const handleDesignerSelect = (uid: string) => {
+    const designer = designers.find((d) => d.uid === uid);
+    save({
       assigned_designer_id: designer?.uid || '',
       assigned_designer_name: designer?.displayName || '',
       assigned_designer_initials: designer?.initials || '',
-      status: order.status === 'SUBMITTED_TO_ADMIN' ? 'ASSIGNED_TO_DESIGNER' : order.status,
+      status: order.status === 'SUBMITTED_TO_ADMIN' && designer ? 'ASSIGNED_TO_DESIGNER' : order.status,
     });
   };
 
-  const handleAgentSelect = async (newAgentId: string) => {
-    setSalesAgentId(newAgentId);
-    const agent = availableAgents.find((a) => a.uid === newAgentId);
-    await triggerAutoSave({
-      sales_agent_id: agent?.uid || '',
-      sales_agent_name: agent?.displayName || '',
-    });
+  const handleAgentSelect = (uid: string) => {
+    const agent = agents.find((a) => a.uid === uid);
+    save({ sales_agent_id: agent?.uid || '', sales_agent_name: agent?.displayName || '' });
   };
 
-  const handleStatusTransition = async (nextStatus: OrderStatus) => {
+  const transition = async (next: OrderStatus) => {
     setIsSubmitting(true);
     try {
-      await onUpdateOrder({
-        status: nextStatus,
-        updated_at: Date.now(),
-      });
+      await save({ status: next });
     } finally {
       setIsSubmitting(false);
     }
@@ -147,10 +170,9 @@ export function OrderDetail({
   const handleAddRevision = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!revisionText.trim() || !currentUser) return;
-
     setIsSubmitting(true);
     try {
-      const newRev = {
+      const note = {
         id: `rev-${Date.now()}`,
         authorId: currentUser.uid,
         authorName: currentUser.displayName,
@@ -158,13 +180,10 @@ export function OrderDetail({
         message: revisionText.trim(),
         timestamp: Date.now(),
       };
-
-      const existingRevisions = order.revisions || [];
-      await onUpdateOrder({
-        revisions: [...existingRevisions, newRev],
-        status: 'IN_REVISION',
-        admin_feedback: revisionText.trim(),
-        updated_at: Date.now(),
+      await save({
+        revisions: [...(order.revisions || []), note],
+        // An admin note is a change request; a designer note is just a reply
+        ...(isAdmin ? { status: 'IN_REVISION' as OrderStatus, admin_feedback: note.message } : {}),
       });
       setRevisionText('');
     } finally {
@@ -172,506 +191,418 @@ export function OrderDetail({
     }
   };
 
-  const getStatusBadge = (status: OrderStatus) => {
-    switch (status) {
-      case 'SUBMITTED_TO_ADMIN':
-        return <Badge variant="warning">Submitted</Badge>;
-      case 'RETURNED_TO_AGENT':
-        return <Badge variant="danger">Returned to Agent</Badge>;
-      case 'ASSIGNED_TO_DESIGNER':
-        return <Badge variant="info">Assigned</Badge>;
-      case 'IN_PRODUCTION':
-        return <Badge variant="purple">In Production</Badge>;
-      case 'ADMIN_REVIEW':
-        return <Badge variant="warning">Admin Review</Badge>;
-      case 'IN_REVISION':
-        return <Badge variant="danger">In Revision</Badge>;
-      case 'DELIVERED':
-        return <Badge variant="info">Delivered (WhatsApp)</Badge>;
-      case 'COMPLETED':
-        return <Badge variant="success">Completed</Badge>;
-    }
-  };
+  // ------------------------------------------------------------------ actions
+  const actions: React.ReactNode[] = [];
+  if (isAdmin && order.status === 'SUBMITTED_TO_ADMIN') {
+    actions.push(
+      <Button key="esc" variant="secondary" onClick={() => openEscalateModal(order)}>
+        <Undo2 className="w-4 h-4" /> Send back to agent
+      </Button>
+    );
+  }
+  if (isAgent && order.status === 'RETURNED_TO_AGENT') {
+    actions.push(
+      <Button key="resub" variant="aura" loading={isSubmitting} onClick={() => transition('SUBMITTED_TO_ADMIN')}>
+        <Send className="w-4 h-4" /> Re-submit to admin
+      </Button>
+    );
+  }
+  if (isDesigner && ['ASSIGNED_TO_DESIGNER', 'IN_PRODUCTION', 'ADMIN_REVIEW'].includes(order.status)) {
+    actions.push(
+      <Button key="deliver" variant="secondary" onClick={() => openDeliveryModal(order)}>
+        <Truck className="w-4 h-4" /> Mark delivered
+      </Button>
+    );
+  }
+  if (isDesigner && order.status === 'ASSIGNED_TO_DESIGNER') {
+    actions.push(
+      <Button key="start" variant="aura" loading={isSubmitting} onClick={() => transition('IN_PRODUCTION')}>
+        <Play className="w-4 h-4" /> Start production
+      </Button>
+    );
+  }
+  if (isDesigner && (order.status === 'IN_PRODUCTION' || order.status === 'IN_REVISION')) {
+    actions.push(
+      <Button key="review" variant="aura" loading={isSubmitting} onClick={() => transition('ADMIN_REVIEW')}>
+        <Send className="w-4 h-4" /> Submit for review
+      </Button>
+    );
+  }
+  if (isAdmin && order.status === 'ADMIN_REVIEW') {
+    actions.push(
+      <Button key="fix" variant="secondary" loading={isSubmitting} onClick={() => transition('IN_REVISION')}>
+        <RotateCcw className="w-4 h-4" /> Request changes
+      </Button>,
+      <Button key="approve" variant="aura" loading={isSubmitting} onClick={() => transition('IN_PRODUCTION')}>
+        <Check className="w-4 h-4" /> Approve design
+      </Button>
+    );
+  }
+  if (isAdmin && order.status === 'DELIVERED') {
+    actions.push(
+      <Button key="complete" variant="aura" loading={isSubmitting} onClick={() => transition('COMPLETED')}>
+        <CheckCircle2 className="w-4 h-4" /> Complete order
+      </Button>
+    );
+  }
 
-  const containerStyle =
+  // ------------------------------------------------------------------ layout
+  const container =
     peekMode === 'full'
-      ? 'fixed inset-0 z-50 bg-[#F5F5F7] overflow-hidden flex flex-col'
+      ? 'fixed inset-0 z-50'
       : peekMode === 'center'
-      ? 'fixed inset-4 sm:inset-12 md:inset-16 z-50 bg-[#F5F5F7] border border-white/90 rounded-3xl shadow-2xl overflow-hidden flex flex-col backdrop-blur-2xl'
-      : 'fixed inset-y-0 right-0 z-40 w-full max-w-xl bg-[#F5F5F7] border-l border-slate-200/80 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-200';
+        ? 'fixed inset-6 md:inset-x-[12%] md:inset-y-10 z-50 rounded-3xl animate-rise-in'
+        : 'fixed inset-y-0 right-0 z-40 w-full max-w-[620px] border-l border-line animate-slide-in-right';
+
+  const stepIndex = PIPELINE.indexOf(order.status);
 
   return (
     <>
-      {peekMode !== 'side' && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-xs"
-          onClick={onClose}
-        />
-      )}
+      {peekMode !== 'side' && <div className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />}
 
-      <div className={containerStyle}>
+      <div className={cn(container, 'bg-canvas shadow-pop flex flex-col overflow-hidden')}>
         {/* Header */}
-        <div className="p-4 border-b border-slate-200/60 flex items-center justify-between bg-white/70 backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-2.5">
-            <input
-              value={orderNumber}
-              disabled={isDesigner}
-              onChange={(e) => setOrderNumber(e.target.value)}
-              onBlur={() => triggerAutoSave({ orderNumber })}
-              className="font-mono text-xs font-bold text-[#1C1D21] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#1C1D21] focus:outline-none w-28"
-            />
-            <button
-              onClick={() => handleCopyCode(order.orderNumber)}
-              className="text-slate-400 hover:text-slate-600 p-0.5 rounded"
-              title="Copy"
-            >
-              {copiedId ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-            </button>
-            {getStatusBadge(order.status)}
-          </div>
-
-          {/* Peek Switcher Controls & Close */}
-          <div className="flex items-center gap-1.5">
-            <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200/60">
-              <button
-                onClick={() => setPeekMode('side')}
-                title="Side Peek"
-                className={`p-1.5 rounded-lg text-xs transition-colors ${
-                  peekMode === 'side'
-                    ? 'bg-white text-[#1C1D21] shadow-xs'
-                    : 'text-slate-400 hover:text-[#1C1D21]'
-                }`}
-              >
-                <PanelRightClose className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setPeekMode('center')}
-                title="Center Modal"
-                className={`p-1.5 rounded-lg text-xs transition-colors ${
-                  peekMode === 'center'
-                    ? 'bg-white text-[#1C1D21] shadow-xs'
-                    : 'text-slate-400 hover:text-[#1C1D21]'
-                }`}
-              >
-                <AppWindow className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setPeekMode('full')}
-                title="Fullscreen"
-                className={`p-1.5 rounded-lg text-xs transition-colors ${
-                  peekMode === 'full'
-                    ? 'bg-white text-[#1C1D21] shadow-xs'
-                    : 'text-slate-400 hover:text-[#1C1D21]'
-                }`}
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <button
-              onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-[#1C1D21] rounded-lg transition-colors ml-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="h-14 px-4 flex items-center gap-2 border-b border-line bg-surface shrink-0">
+          <button
+            onClick={handleCopyCode}
+            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-surface-muted text-xs font-semibold text-muted hover:text-ink tabular-nums"
+            title="Copy order number"
+          >
+            {order.orderNumber}
+            {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+          </button>
+          <StatusPill status={order.status} size="sm" />
+          <div className="flex-1" />
+          <SegmentedControl
+            size="sm"
+            value={peekMode}
+            onChange={setPeekMode}
+            options={[
+              { value: 'side', label: '', icon: PanelRight },
+              { value: 'center', label: '', icon: AppWindow },
+              { value: 'full', label: '', icon: Maximize2 },
+            ]}
+          />
+          <IconButton label="Close (Esc)" onClick={onClose}>
+            <X className="w-4.5 h-4.5" />
+          </IconButton>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          {/* Editable Title */}
-          <div>
-            <input
-              value={title}
-              disabled={isDesigner}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => triggerAutoSave({ title })}
-              placeholder="Order Title"
-              className="w-full text-lg sm:text-xl font-semibold text-[#1C1D21] bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#1C1D21] focus:outline-none transition-colors"
-            />
-            <div className="flex items-center gap-4 text-xs text-[#6B7280] mt-1 font-mono">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-slate-400" />
-                Due:
-                <input
-                  type="date"
-                  value={dueDate}
-                  disabled={isDesigner}
-                  onChange={(e) => {
-                    setDueDate(e.target.value);
-                    triggerAutoSave({ due_date: new Date(e.target.value).getTime() });
-                  }}
-                  className="bg-transparent border-b border-transparent hover:border-slate-300 focus:outline-none ml-1 cursor-pointer"
-                />
-              </span>
-              <span>
-                Created: {new Date(order.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-
-          {/* Escalation Alert */}
-          {order.status === 'RETURNED_TO_AGENT' && order.escalation_note && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-1 text-xs">
-              <div className="flex items-center gap-2 text-amber-800 font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Admin Escalation Notice:</span>
-              </div>
-              <p className="text-amber-700 leading-relaxed pl-5">
-                {order.escalation_note}
-              </p>
-            </div>
-          )}
-
-          {/* Client & Financial Cards (Editable In-Place) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div className="glass-panel p-3.5 rounded-2xl space-y-2 text-xs">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                Client Contact
-              </span>
-              <div className="flex items-center gap-2">
-                <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <input
-                  value={clientName}
-                  disabled={isDesigner}
-                  onChange={(e) => setClientName(e.target.value)}
-                  onBlur={() => triggerAutoSave({ client_name: clientName })}
-                  className="w-full font-medium text-xs text-[#1C1D21] bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#1C1D21] focus:outline-none"
-                  placeholder="Client Name"
-                />
-              </div>
-
-              {isDesigner ? (
-                <div className="text-[11px] text-slate-400 italic">
-                  [Phone Redacted for Designer]
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className={cn('mx-auto px-6 py-6 space-y-5', peekMode === 'side' ? 'max-w-none' : 'max-w-3xl')}>
+            {/* Title */}
+            <div>
+              <InlineInput
+                value={draft.title}
+                onChange={set('title')}
+                onCommit={() => commit('title', draft.title.trim())}
+                disabled={!canEdit}
+                placeholder="Order title"
+                className="font-display text-[28px] leading-tight text-ink"
+              />
+              <div className="mt-1 flex items-center gap-3 text-[13px] text-muted">
+                <span>Created {new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                <span className="w-1 h-1 rounded-full bg-line-strong" />
+                <label className="inline-flex items-center gap-1.5">
+                  <CalendarDays className="w-3.5 h-3.5" /> Due
                   <input
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    onBlur={() => triggerAutoSave({ client_phone: clientPhone })}
-                    className="w-full text-xs text-[#6B7280] bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#1C1D21] focus:outline-none"
-                    placeholder="Phone (WhatsApp)"
+                    type="date"
+                    value={draft.due}
+                    disabled={!canEdit}
+                    onChange={(e) => {
+                      set('due')(e.target.value);
+                      if (e.target.value) save({ due_date: new Date(e.target.value).getTime() });
+                    }}
+                    className="bg-transparent rounded-md px-1 hover:bg-ink/[0.04] focus:outline-none focus:ring-2 focus:ring-aura text-ink font-medium"
                   />
-                </div>
-              )}
+                </label>
+              </div>
             </div>
 
-            <div className="glass-panel p-3.5 rounded-2xl space-y-2 text-xs">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                Financials
-              </span>
-              {isDesigner ? (
-                <div className="text-[11px] text-slate-400 italic py-1">
-                  [Price Redacted for Designer]
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 font-mono font-bold text-base text-[#1C1D21]">
-                  <DollarSign className="w-4 h-4 text-emerald-600" />
-                  <input
-                    type="number"
-                    value={agreedPrice}
-                    onChange={(e) => setAgreedPrice(e.target.value)}
-                    onBlur={() =>
-                      triggerAutoSave({ agreed_price: parseFloat(agreedPrice) || 0 })
-                    }
-                    className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#1C1D21] focus:outline-none"
-                    placeholder="0.00"
+            {/* Progress */}
+            <div className="flex items-center gap-1">
+              {PIPELINE.map((s, i) => (
+                <div key={s} className="flex-1" title={STATUS_META[s].label}>
+                  <div
+                    className={cn(
+                      'h-1.5 rounded-full',
+                      order.status === 'RETURNED_TO_AGENT'
+                        ? i === 0 ? 'bg-rose-400' : 'bg-line'
+                        : i < stepIndex ? 'bg-ink' : i === stepIndex ? STATUS_META[s].bar : 'bg-line'
+                    )}
                   />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Resources Workload Allocation */}
-          <div className="glass-panel p-3.5 rounded-2xl space-y-3 text-xs">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-              Assigned Personnel
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-500 mb-1 text-[11px]">
-                  CAD Designer
-                </label>
-                {isAdmin ? (
-                  <select
-                    value={assignedDesignerId}
-                    onChange={(e) => handleDesignerSelect(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl text-xs px-2.5 py-1.5 text-slate-700"
-                  >
-                    <option value="">Select Designer...</option>
-                    {availableDesigners.map((d) => (
-                      <option key={d.uid} value={d.uid}>
-                        {d.displayName} ({d.initials || 'DS'})
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-xs font-medium text-[#1C1D21]">
-                    {order.assigned_designer_name || 'Unassigned'}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-slate-500 mb-1 text-[11px]">
-                  Intake Sales Agent
-                </label>
-                {isAdmin ? (
-                  <select
-                    value={salesAgentId}
-                    onChange={(e) => handleAgentSelect(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl text-xs px-2.5 py-1.5 text-slate-700"
-                  >
-                    <option value="">Select Agent...</option>
-                    {availableAgents.map((a) => (
-                      <option key={a.uid} value={a.uid}>
-                        {a.displayName}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="text-xs font-medium text-[#1C1D21]">
-                    {order.sales_agent_name}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Project Brief */}
-          <div className="glass-panel p-3.5 rounded-2xl space-y-2 text-xs">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-              Project Brief & Notes
-            </span>
-            <textarea
-              rows={4}
-              value={projectBrief}
-              disabled={isDesigner}
-              onChange={(e) => setProjectBrief(e.target.value)}
-              onBlur={() => triggerAutoSave({ project_brief: projectBrief })}
-              placeholder="Detail metal alloy, dimensions, stones..."
-              className="w-full bg-white/60 border border-slate-200/80 rounded-xl p-3 text-xs text-[#1C1D21] focus:outline-none focus:border-[#1C1D21] transition-colors"
-            />
-          </div>
-
-          {/* Chronological Status Changes */}
-          <div className="glass-panel p-3.5 rounded-2xl space-y-2.5 text-xs">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5">
-              <History className="w-3.5 h-3.5 text-slate-500" /> Chronological Status History
-            </span>
-            <div className="space-y-1.5 border-l-2 border-slate-200 pl-3 ml-1">
-              <div>
-                <div className="font-semibold text-xs text-[#1C1D21]">
-                  Intake: SUBMITTED_TO_ADMIN
-                </div>
-                <div className="text-[10px] text-slate-400 font-mono">
-                  {new Date(order.created_at).toLocaleString()}
-                </div>
-              </div>
-
-              {order.status !== 'SUBMITTED_TO_ADMIN' && (
-                <div className="pt-1">
-                  <div className="font-semibold text-xs text-indigo-700">
-                    Active Phase: {order.status}
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono">
-                    Updated {new Date(order.updated_at).toLocaleString()}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Lazy Day-Wise Time Machine */}
-          <TimeMachineSlider order={order} />
-
-          {/* Invoicing Panel */}
-          {!isDesigner && (
-            <InvoicePanel
-              orderId={order.id}
-              orderAmount={order.agreed_price || 0}
-              userRole={currentUser?.role || 'sales_agent'}
-              currentUserName={currentUser?.displayName || 'User'}
-            />
-          )}
-
-          {/* Revision & Feedback Section */}
-          <div className="glass-panel p-3.5 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
-                <span className="text-xs font-semibold text-[#1C1D21]">
-                  Design Revisions
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-mono">
-                {(order.revisions || []).length} notes
-              </span>
-            </div>
-
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {(!order.revisions || order.revisions.length === 0) && (
-                <p className="text-xs text-slate-400 italic py-1">
-                  No revision notes recorded yet.
-                </p>
-              )}
-
-              {(order.revisions || []).map((rev) => (
-                <div
-                  key={rev.id}
-                  className="p-2.5 rounded-xl bg-white border border-slate-100 text-xs space-y-0.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-[#1C1D21]">
-                      {rev.authorName} ({rev.authorRole})
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(rev.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-slate-600">{rev.message}</p>
                 </div>
               ))}
             </div>
 
-            {(isAdmin || isDesigner) && (
-              <form onSubmit={handleAddRevision} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Post revision feedback..."
-                  value={revisionText}
-                  onChange={(e) => setRevisionText(e.target.value)}
-                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[#1C1D21] text-xs focus:outline-none"
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSubmitting || !revisionText.trim()}
-                >
-                  <Send className="w-3 h-3" />
-                </Button>
-              </form>
+            {/* Next step */}
+            <div
+              className={cn(
+                'relative overflow-hidden rounded-2xl p-4 flex gap-3.5',
+                mine ? 'bg-ink text-white' : 'bg-surface border border-line'
+              )}
+            >
+              {mine && <div className="absolute -top-12 -right-10 w-40 h-40 rounded-full bg-aura/25 blur-2xl" />}
+              <div
+                className={cn(
+                  'relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
+                  mine ? 'bg-aura text-ink' : 'bg-surface-muted text-muted'
+                )}
+              >
+                {mine ? <Sparkles className="w-5 h-5" /> : <meta.icon className="w-5 h-5" />}
+              </div>
+              <div className="relative flex-1 min-w-0">
+                <div className={cn('text-sm font-semibold', mine ? 'text-aura' : 'text-ink')}>
+                  {mine ? 'Your move' : meta.label}
+                </div>
+                <div className={cn('text-[13px] mt-0.5', mine ? 'text-white/70' : 'text-muted')}>
+                  {isAdmin && order.status === 'SUBMITTED_TO_ADMIN'
+                    ? 'Pick a designer below to assign it, or send it back if details are missing.'
+                    : meta.hint}
+                </div>
+                {order.status === 'DELIVERED' && order.delivery_code && (
+                  <div className={cn('mt-2 text-xs font-mono', mine ? 'text-white/60' : 'text-muted')} data-selectable>
+                    Delivery code: {order.delivery_code}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {order.status === 'RETURNED_TO_AGENT' && order.escalation_note && (
+              <div className="flex gap-3 p-4 rounded-2xl bg-rose-50 ring-1 ring-rose-200">
+                <AlertTriangle className="w-4.5 h-4.5 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-sm font-semibold text-rose-800">What the admin needs</div>
+                  <p className="text-[13px] text-rose-700 mt-0.5 leading-relaxed">{order.escalation_note}</p>
+                </div>
+              </div>
             )}
+
+            {/* Facts */}
+            <div className={cn('grid gap-3.5', peekMode === 'side' ? 'grid-cols-2' : 'grid-cols-3')}>
+              <FactCard label="Client" icon={<Users />}>
+                <InlineInput
+                  value={draft.client_name}
+                  onChange={set('client_name')}
+                  onCommit={() => commit('client_name', draft.client_name.trim())}
+                  disabled={!canEdit}
+                  placeholder="Client name"
+                  className="text-[15px] font-semibold text-ink"
+                />
+                {isDesigner ? (
+                  <Redacted>Phone hidden for designers</Redacted>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-[13px] text-muted">
+                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                    <InlineInput
+                      value={draft.client_phone}
+                      onChange={set('client_phone')}
+                      onCommit={() => commit('client_phone', draft.client_phone.trim())}
+                      placeholder="WhatsApp number"
+                    />
+                  </div>
+                )}
+              </FactCard>
+
+              <FactCard label="Agreed price" icon={<DollarSign />}>
+                {isDesigner ? (
+                  <Redacted>Hidden for designers</Redacted>
+                ) : (
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="font-display text-2xl text-muted">$</span>
+                    <InlineInput
+                      type="number"
+                      value={draft.agreed_price}
+                      onChange={set('agreed_price')}
+                      onCommit={() => commit('agreed_price', parseFloat(draft.agreed_price) || 0)}
+                      placeholder="0"
+                      className="font-display text-2xl text-ink tabular-nums"
+                    />
+                  </div>
+                )}
+              </FactCard>
+
+              <FactCard label="Team" icon={<Users />} className={peekMode === 'side' ? 'col-span-2' : ''}>
+                <div className="grid grid-cols-2 gap-3">
+                  <PersonPicker
+                    label="Designer"
+                    editable={isAdmin}
+                    value={order.assigned_designer_id || ''}
+                    name={order.assigned_designer_name}
+                    initials={order.assigned_designer_initials}
+                    options={designers}
+                    onChange={handleDesignerSelect}
+                    emptyLabel="Choose a designer…"
+                    highlight={isAdmin && order.status === 'SUBMITTED_TO_ADMIN'}
+                  />
+                  <PersonPicker
+                    label="Sales agent"
+                    editable={isAdmin}
+                    value={order.sales_agent_id || ''}
+                    name={order.sales_agent_name}
+                    options={agents}
+                    onChange={handleAgentSelect}
+                    emptyLabel="Choose an agent…"
+                  />
+                </div>
+              </FactCard>
+            </div>
+
+            {/* Brief */}
+            <section className="bg-surface border border-line rounded-2xl p-4">
+              <SectionLabel icon={<FileText />}>Design brief</SectionLabel>
+              <textarea
+                rows={4}
+                value={draft.project_brief}
+                disabled={!canEdit}
+                onChange={(e) => set('project_brief')(e.target.value)}
+                onBlur={() => commit('project_brief', draft.project_brief.trim())}
+                placeholder="Metal, stones, dimensions, finger size, references…"
+                className="mt-2 w-full bg-transparent text-sm text-ink leading-relaxed resize-none rounded-lg px-2 -mx-2 py-1 hover:bg-ink/[0.03] focus:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-aura disabled:hover:bg-transparent"
+              />
+            </section>
+
+            {/* Revisions */}
+            <section className="bg-surface border border-line rounded-2xl p-4">
+              <div className="flex items-center justify-between">
+                <SectionLabel icon={<MessageSquare />}>Revision notes</SectionLabel>
+                <span className="text-xs text-faint">{(order.revisions || []).length}</span>
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {(order.revisions || []).length === 0 && (
+                  <p className="text-[13px] text-faint">No notes yet. Feedback between admins and the designer shows up here.</p>
+                )}
+                {(order.revisions || []).map((rev) => {
+                  const fromMe = rev.authorId === currentUser?.uid;
+                  return (
+                    <div key={rev.id} className={cn('flex gap-2.5', fromMe && 'flex-row-reverse')}>
+                      <Avatar name={rev.authorName} size="sm" />
+                      <div className={cn('max-w-[80%] rounded-2xl px-3.5 py-2.5', fromMe ? 'bg-ink text-white' : 'bg-surface-muted')}>
+                        <div className={cn('text-[11px] font-semibold', fromMe ? 'text-aura' : 'text-muted')}>
+                          {rev.authorName} ·{' '}
+                          {new Date(rev.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <p className="text-sm mt-0.5 leading-relaxed" data-selectable>{rev.message}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {(isAdmin || isDesigner) && (
+                <form onSubmit={handleAddRevision} className="mt-4 flex gap-2">
+                  <input
+                    type="text"
+                    placeholder={isAdmin ? 'Request a change… (moves the order to Revision)' : 'Reply to the admin…'}
+                    value={revisionText}
+                    onChange={(e) => setRevisionText(e.target.value)}
+                    className="flex-1 h-10 px-3.5 bg-surface-muted border border-line rounded-xl text-sm focus:outline-none focus:border-ink focus:ring-2 focus:ring-aura/60"
+                  />
+                  <Button type="submit" disabled={!revisionText.trim()} loading={isSubmitting}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </form>
+              )}
+            </section>
+
+            {!isDesigner && (
+              <InvoicePanel
+                orderId={order.id}
+                orderAmount={order.agreed_price || 0}
+                userRole={currentUser?.role || 'sales_agent'}
+                currentUserName={currentUser?.displayName || 'User'}
+              />
+            )}
+
+            <TimeMachineSlider order={order} />
           </div>
         </div>
 
-        {/* Action Bar */}
-        <div className="p-3.5 bg-white/70 border-t border-slate-200/60 flex items-center justify-between gap-3 shrink-0">
-          {isAdmin && order.status === 'SUBMITTED_TO_ADMIN' && (
-            <div className="flex items-center gap-2 w-full">
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => openEscalateModal(order)}
-              >
-                Escalate to Agent
-              </Button>
-            </div>
-          )}
-
-          {isAgent && order.status === 'RETURNED_TO_AGENT' && (
-            <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-amber-800">
-                Returned for clarification
-              </span>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => handleStatusTransition('SUBMITTED_TO_ADMIN')}
-              >
-                Re-Submit
-              </Button>
-            </div>
-          )}
-
-          {isDesigner && order.status === 'ASSIGNED_TO_DESIGNER' && (
-            <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-slate-500">Ready to start</span>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => handleStatusTransition('IN_PRODUCTION')}
-              >
-                <Play className="w-3 h-3 mr-1" /> Start Production
-              </Button>
-            </div>
-          )}
-
-          {isDesigner &&
-            (order.status === 'IN_PRODUCTION' || order.status === 'IN_REVISION') && (
-              <div className="flex items-center justify-between w-full">
-                <span className="text-xs text-slate-500">In Production</span>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleStatusTransition('ADMIN_REVIEW')}
-                >
-                  Submit for Review
-                </Button>
-              </div>
-            )}
-
-          {isAdmin && order.status === 'ADMIN_REVIEW' && (
-            <div className="flex items-center justify-end gap-2 w-full">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleStatusTransition('IN_REVISION')}
-                className="text-amber-700"
-              >
-                <RotateCcw className="w-3 h-3 mr-1" /> Request Fix
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => handleStatusTransition('IN_PRODUCTION')}
-              >
-                <Check className="w-3 h-3 mr-1" /> Approve
-              </Button>
-            </div>
-          )}
-
-          {isDesigner &&
-            (order.status === 'IN_PRODUCTION' ||
-              order.status === 'ADMIN_REVIEW' ||
-              order.status === 'ASSIGNED_TO_DESIGNER') && (
-              <div className="flex items-center justify-end w-full">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => openDeliveryModal(order)}
-                >
-                  <Truck className="w-3 h-3 mr-1.5" /> Mark Delivered (WhatsApp)
-                </Button>
-              </div>
-            )}
-
-          {isAdmin && order.status === 'DELIVERED' && (
-            <div className="flex items-center justify-between w-full">
-              <span className="text-xs text-slate-500">
-                Code: <code className="font-mono">{order.delivery_code}</code>
-              </span>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => handleStatusTransition('COMPLETED')}
-              >
-                <CheckCircle className="w-3 h-3 mr-1" /> Complete Order
-              </Button>
-            </div>
-          )}
-        </div>
+        {/* Action bar */}
+        {actions.length > 0 && (
+          <div className="px-6 py-3.5 bg-surface border-t border-line flex items-center justify-end gap-2.5 shrink-0">
+            {actions}
+          </div>
+        )}
       </div>
     </>
+  );
+}
+
+function FactCard({
+  label,
+  icon,
+  className,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn('bg-surface border border-line rounded-2xl p-4 space-y-1.5', className)}>
+      <SectionLabel icon={icon}>{label}</SectionLabel>
+      {children}
+    </div>
+  );
+}
+
+function Redacted({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 text-[13px] text-faint py-1">
+      <Lock className="w-3.5 h-3.5" /> {children}
+    </div>
+  );
+}
+
+function PersonPicker({
+  label,
+  editable,
+  value,
+  name,
+  initials,
+  options,
+  onChange,
+  emptyLabel,
+  highlight,
+}: {
+  label: string;
+  editable: boolean;
+  value: string;
+  name?: string;
+  initials?: string;
+  options: UserProfile[];
+  onChange: (uid: string) => void;
+  emptyLabel: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-xs text-muted mb-1.5">{label}</div>
+      {editable ? (
+        <Select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn('h-9 text-[13px]', highlight && !value && 'ring-2 ring-aura border-aura-deep')}
+        >
+          <option value="">{options.length ? emptyLabel : 'No active people in this role'}</option>
+          {options.map((p) => (
+            <option key={p.uid} value={p.uid}>
+              {p.displayName}
+            </option>
+          ))}
+        </Select>
+      ) : name ? (
+        <div className="flex items-center gap-2 text-sm font-medium text-ink">
+          <Avatar size="xs" name={name} initials={initials} />
+          {name}
+        </div>
+      ) : (
+        <div className="text-sm text-faint">Not assigned</div>
+      )}
+    </div>
   );
 }

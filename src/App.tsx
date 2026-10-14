@@ -5,6 +5,9 @@ import { auth, db } from './shared/firebase';
 import { useUIStore } from './shared/store';
 import type { UserProfile } from './shared/types';
 import { ensureUserProfile } from './shared/userProfile';
+import { isDemo, DEMO_TEAM } from './shared/demo';
+import { DemoRoleSwitcher } from './features/layout/DemoRoleSwitcher';
+import { Toaster, ConfirmHost, LogoMark, Spinner } from './shared/ui';
 import { AuthView } from './features/auth/AuthView';
 import { WaitingRoomView } from './features/auth/WaitingRoomView';
 import { TeamGovernanceModal } from './features/team/TeamGovernanceModal';
@@ -17,11 +20,12 @@ export function App() {
   const setAuthNotice = useUIStore((s) => s.setAuthNotice);
 
   const [teamSnapshot, setTeamSnapshot] = useState<UserProfile[]>([]);
-  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(!isDemo);
 
   // Firebase Auth state -> ensure profile doc -> live profile listener.
   // The Firestore doc is the only source of truth for role/status (it is what the rules enforce).
   useEffect(() => {
+    if (isDemo) return;
     let unsubUserDoc: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -83,7 +87,7 @@ export function App() {
     currentUser?.status === 'active' && currentUser.role !== 'unassigned';
 
   useEffect(() => {
-    if (!canReadTeam) return;
+    if (!canReadTeam || isDemo) return;
     const unsubTeam = onSnapshot(
       collection(db, 'users'),
       (snapshot) => {
@@ -95,50 +99,53 @@ export function App() {
     );
     return () => unsubTeam();
   }, [canReadTeam]);
-  const teamUsers = canReadTeam ? teamSnapshot : [];
+  const teamUsers = isDemo ? DEMO_TEAM : canReadTeam ? teamSnapshot : [];
 
-  // 1. Initial Auth Check -> Dedicated branded loading screen (prevents flash of login screen)
+  return (
+    <>
+      <Screen isAuthChecking={isAuthChecking} currentUser={currentUser} teamUsers={teamUsers} />
+      <Toaster />
+      <ConfirmHost />
+      {isDemo && <DemoRoleSwitcher />}
+    </>
+  );
+}
+
+function Screen({
+  isAuthChecking,
+  currentUser,
+  teamUsers,
+}: {
+  isAuthChecking: boolean;
+  currentUser: UserProfile | null;
+  teamUsers: UserProfile[];
+}) {
+  // 1. Initial auth check -> branded splash (prevents a flash of the login screen)
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen bg-[#F5F5F7] flex flex-col justify-center items-center select-none relative overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#CEE269]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#1C1D21] flex items-center justify-center text-white font-mono text-xl font-bold shadow-xl mb-5 animate-pulse">
-            AD
-          </div>
-          <h1 className="text-xl font-semibold text-[#1C1D21] tracking-tight">
-            Aura Desk
-          </h1>
-          <div className="flex items-center gap-2 mt-3 text-xs text-[#6B7280]">
-            <div className="w-3.5 h-3.5 border-2 border-[#1C1D21]/20 border-t-[#1C1D21] rounded-full animate-spin" />
-            <span>Initializing workspace session...</span>
-          </div>
+      <div className="h-full aura-backdrop flex flex-col justify-center items-center animate-fade-in">
+        <LogoMark glow className="w-16 h-16" />
+        <h1 className="mt-6 font-display text-3xl text-ink">
+          Aura <span className="italic text-copper">Desk</span>
+        </h1>
+        <div className="flex items-center gap-2 mt-3 text-sm text-muted">
+          <Spinner className="w-3.5 h-3.5" />
+          <span>Opening your workspace…</span>
         </div>
       </div>
     );
   }
 
-  // 2. Unauthenticated -> Show clean Auth View
-  if (!currentUser) {
-    return <AuthView />;
-  }
+  // 2. Signed out
+  if (!currentUser) return <AuthView />;
 
-  // 3. Unassigned, pending approval or suspended -> Locked to Waiting Room View
-  if (currentUser.role === 'unassigned' || currentUser.status !== 'active') {
-    return <WaitingRoomView />;
-  }
+  // 3. Unassigned, pending approval or suspended
+  if (currentUser.role === 'unassigned' || currentUser.status !== 'active') return <WaitingRoomView />;
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] text-[#1C1D21] flex flex-col font-sans select-none overflow-hidden">
-      {/* Main Workspace with clean, minimal layout and zero visual bloat */}
-      <main className="flex-1 flex overflow-hidden">
-        <OrderDashboard teamUsers={teamUsers} />
-      </main>
-
-      {/* Team Governance Modal */}
+    <div className="h-full flex overflow-hidden">
+      <OrderDashboard teamUsers={teamUsers} />
       <TeamGovernanceModal teamUsers={teamUsers} />
-
-      {/* Auto-Updater Available Notification & 1-Click Installer */}
       <UpdateNotifier />
     </div>
   );

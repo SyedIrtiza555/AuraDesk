@@ -1,123 +1,121 @@
-import { useState, useEffect } from 'react';
-import { check } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { ArrowDownCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { useEffect } from 'react';
+import { create } from 'zustand';
+import type { Update } from '@tauri-apps/plugin-updater';
+import { ArrowDownToLine, Sparkles, X } from 'lucide-react';
+import { isTauri } from '../../shared/notifications';
+import { Button, IconButton, toast } from '../../shared/ui';
 
-export function UpdateNotifier() {
-  const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
-  const [newVersion, setNewVersion] = useState<string>('');
-  const [releaseNotes, setReleaseNotes] = useState<string>('');
-  const [isUpdating, setIsUpdating] = useState<boolean>(false);
-  const [downloadProgress, setDownloadProgress] = useState<number>(0);
-  const [statusText, setStatusText] = useState<string>('');
-  const [updateObj, setUpdateObj] = useState<any>(null);
+interface UpdaterState {
+  update: Update | null;
+  dismissed: boolean;
+  installing: boolean;
+  progress: number;
+  status: string;
+  check: (manual?: boolean) => Promise<void>;
+  install: () => Promise<void>;
+  dismiss: () => void;
+}
 
-  // Check for updates on mount and periodically every 15 minutes
-  useEffect(() => {
-    let isMounted = true;
+/** Shared updater state so the sidebar's "Check for updates" and the banner stay in sync. */
+export const useUpdater = create<UpdaterState>((set, get) => ({
+  update: null,
+  dismissed: false,
+  installing: false,
+  progress: 0,
+  status: '',
 
-    const checkAppUpdate = async () => {
-      try {
-        const update = await check();
-        if (update && isMounted) {
-          setUpdateAvailable(true);
-          setNewVersion(update.version);
-          setReleaseNotes(update.body || 'New features, performance enhancements, and bug fixes.');
-          setUpdateObj(update);
-        }
-      } catch (err) {
-        console.warn('[Aura Desk Updater Check]:', err);
+  check: async (manual = false) => {
+    if (!isTauri()) {
+      if (manual) toast.info('Updates run in the desktop app', 'The web preview always runs the latest code.');
+      return;
+    }
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (update) {
+        set({ update, dismissed: false });
+        if (manual) toast.success(`Version ${update.version} is ready`, 'Use “Update now” in the top-right corner.');
+      } else if (manual) {
+        toast.success("You're up to date", `Aura Desk ${__APP_VERSION__}`);
       }
-    };
+    } catch (err) {
+      console.warn('[Aura Desk Updater Check]:', err);
+      if (manual) toast.error('Could not check for updates', err instanceof Error ? err.message : String(err));
+    }
+  },
 
-    checkAppUpdate();
-    const interval = setInterval(checkAppUpdate, 15 * 60 * 1000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const handleApplyUpdate = async () => {
-    if (!updateObj) return;
-
-    setIsUpdating(true);
-    setStatusText('Downloading update...');
-
+  install: async () => {
+    const { update } = get();
+    if (!update) return;
+    set({ installing: true, status: 'Downloading…', progress: 0 });
     try {
       let downloaded = 0;
       let total = 0;
-
-      await updateObj.downloadAndInstall((event: any) => {
+      await update.downloadAndInstall((event) => {
         if (event.event === 'Started') {
           total = event.data.contentLength || 0;
-          setStatusText('Downloading package...');
         } else if (event.event === 'Progress') {
           downloaded += event.data.chunkLength;
-          if (total > 0) {
-            setDownloadProgress(Math.round((downloaded / total) * 100));
-          }
+          if (total > 0) set({ progress: Math.round((downloaded / total) * 100) });
         } else if (event.event === 'Finished') {
-          setStatusText('Installing and finalizing update...');
+          set({ status: 'Installing…' });
         }
       });
-
-      setStatusText('Relaunching updated Aura Desk...');
+      set({ status: 'Restarting…' });
+      const { relaunch } = await import('@tauri-apps/plugin-process');
       await relaunch();
-    } catch (err: unknown) {
+    } catch (err) {
       console.error('[Aura Desk Update Failed]:', err);
-      setStatusText(err instanceof Error ? err.message : 'Update failed');
-      setIsUpdating(false);
+      set({ installing: false, status: '' });
+      toast.error('Update failed', err instanceof Error ? err.message : String(err));
     }
-  };
+  },
 
-  if (!updateAvailable) return null;
+  dismiss: () => set({ dismissed: true }),
+}));
+
+export function UpdateNotifier() {
+  const { update, dismissed, installing, progress, status, check, install, dismiss } = useUpdater();
+
+  // Check on start and every 15 minutes
+  useEffect(() => {
+    check();
+    const interval = setInterval(() => check(), 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [check]);
+
+  if (!update || (dismissed && !installing)) return null;
 
   return (
-    <div className="fixed top-3 right-5 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
-      <div className="glass-floating px-4 py-2.5 rounded-2xl shadow-xl border border-emerald-500/30 bg-emerald-50/90 text-emerald-950 flex items-center gap-3 select-none backdrop-blur-md">
-        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-          <Sparkles className="w-4 h-4 animate-pulse" />
-        </div>
-
-        <div className="flex flex-col">
-          <div className="flex items-center gap-1.5 font-semibold text-xs text-emerald-900">
-            <span>Update Available</span>
-            <span className="font-mono text-[10px] bg-emerald-200/80 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold">
-              v{newVersion}
-            </span>
+    <div className="fixed top-4 right-4 z-50 w-[340px] animate-rise-in">
+      <div className="relative overflow-hidden rounded-2xl bg-ink text-white shadow-pop p-4">
+        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-aura/30 blur-2xl" />
+        <div className="relative flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-aura text-ink flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <div className="text-[11px] text-emerald-700/90 max-w-[200px] truncate">
-            {isUpdating ? statusText : releaseNotes}
-          </div>
-          {isUpdating && downloadProgress > 0 && (
-            <div className="w-full bg-emerald-200/80 rounded-full h-1 mt-1 overflow-hidden">
-              <div
-                className="bg-emerald-600 h-1 rounded-full transition-all duration-200"
-                style={{ width: `${downloadProgress}%` }}
-              />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold">Aura Desk {update.version} is here</div>
+            <div className="text-xs text-white/60 mt-0.5 line-clamp-2">
+              {installing ? status : update.body || 'Fixes and improvements are ready to install.'}
             </div>
+          </div>
+          {!installing && (
+            <IconButton label="Later" tone="inverse" size="sm" onClick={dismiss} className="-mr-1 -mt-1">
+              <X className="w-4 h-4" />
+            </IconButton>
           )}
         </div>
 
-        <button
-          onClick={handleApplyUpdate}
-          disabled={isUpdating}
-          className="ml-2 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-        >
-          {isUpdating ? (
-            <>
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              <span>{downloadProgress > 0 ? `${downloadProgress}%` : 'Updating...'}</span>
-            </>
-          ) : (
-            <>
-              <ArrowDownCircle className="w-3.5 h-3.5" />
-              <span>Update Now</span>
-            </>
-          )}
-        </button>
+        {installing ? (
+          <div className="relative mt-3.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full bg-aura transition-all duration-200" style={{ width: `${Math.max(progress, 4)}%` }} />
+          </div>
+        ) : (
+          <Button variant="aura" size="sm" className="relative mt-3.5 w-full" onClick={install}>
+            <ArrowDownToLine className="w-3.5 h-3.5" /> Update now
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../../shared/firebase';
 import type { Invoice, UserRole } from '../../shared/types';
-import { Button, Badge } from '../../shared/ui';
-import { CreditCard, CheckCircle2, DollarSign } from 'lucide-react';
+import { Button, SectionLabel, toast, cn } from '../../shared/ui';
+import { formatMoney } from '../../shared/orderStatus';
+import { isDemo } from '../../shared/demo';
+import { Receipt, CheckCircle2, CircleDashed } from 'lucide-react';
 
 interface InvoicePanelProps {
   orderId: string;
@@ -12,149 +14,94 @@ interface InvoicePanelProps {
   currentUserName: string;
 }
 
-export function InvoicePanel({
-  orderId,
-  orderAmount,
-  userRole,
-  currentUserName,
-}: InvoicePanelProps) {
-  // STRICT DATA REDACTION INVARIANT:
-  // Designers are strictly forbidden from viewing all invoices records.
-  if (userRole === 'designer') {
-    return null;
-  }
+const blankInvoice = (orderId: string, amount: number): Invoice => ({
+  order_id: orderId,
+  amount,
+  status: 'unpaid',
+  created_at: 0,
+  updated_at: 0,
+});
 
+/** One invoice per order (invoices/{orderId}). Never rendered for designers. */
+export function InvoicePanel({ orderId, orderAmount, userRole, currentUserName }: InvoicePanelProps) {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [updating, setUpdating] = useState<boolean>(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
 
-  // Deterministic 1:1 invoice ID: invoices/{orderId}
   useEffect(() => {
-    let isCancelled = false;
-
-    try {
-      const unsub = onSnapshot(doc(db, 'invoices', orderId), (snap) => {
-        if (!isCancelled) {
-          if (snap.exists()) {
-            setInvoice(snap.data() as Invoice);
-          } else {
-            // Uninitialized default invoice
-            setInvoice({
-              order_id: orderId,
-              amount: orderAmount || 0,
-              status: 'unpaid',
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            });
-          }
-          setLoading(false);
-        }
-      });
-      return () => unsub();
-    } catch (e) {
-      console.warn('[Invoice] Offline snapshot mode:', e);
-      if (!isCancelled) {
-        setInvoice({
-          order_id: orderId,
-          amount: orderAmount || 0,
-          status: 'unpaid',
-          created_at: Date.now(),
-          updated_at: Date.now(),
-        });
-        setLoading(false);
+    if (userRole === 'designer' || isDemo) return;
+    const unsub = onSnapshot(
+      doc(db, 'invoices', orderId),
+      (snap) => {
+        setInvoice(snap.exists() ? (snap.data() as Invoice) : null);
+        setLoadedFor(orderId);
+      },
+      (err) => {
+        console.warn('[Invoice] listener error:', err);
+        setLoadedFor(orderId);
       }
-    }
-  }, [orderId, orderAmount]);
+    );
+    return () => unsub();
+  }, [orderId, userRole]);
 
-  const handleTogglePayment = async () => {
-    if (!invoice) return;
+  if (userRole === 'designer') return null;
+
+  const current = invoice && invoice.order_id === orderId ? invoice : blankInvoice(orderId, orderAmount);
+  const loading = !isDemo && loadedFor !== orderId;
+  const paid = current.status === 'paid';
+  const canToggle = userRole === 'admin' || userRole === 'owner';
+
+  const handleToggle = async () => {
     setUpdating(true);
-
-    const newStatus = invoice.status === 'paid' ? 'unpaid' : 'paid';
-    const updatedInvoice: Invoice = {
-      ...invoice,
-      status: newStatus,
-      marked_paid_by: newStatus === 'paid' ? currentUserName : undefined,
-      marked_paid_by_name: newStatus === 'paid' ? currentUserName : undefined,
+    const next: Invoice = {
+      ...current,
+      amount: current.amount || orderAmount,
+      status: paid ? 'unpaid' : 'paid',
+      marked_paid_by: paid ? '' : currentUserName,
+      marked_paid_by_name: paid ? '' : currentUserName,
+      created_at: current.created_at || Date.now(),
       updated_at: Date.now(),
     };
-
-    setInvoice(updatedInvoice);
-
+    setInvoice(next);
     try {
-      await setDoc(doc(db, 'invoices', orderId), updatedInvoice, { merge: true });
+      if (!isDemo) await setDoc(doc(db, 'invoices', orderId), next, { merge: true });
+      toast.success(paid ? 'Marked as unpaid' : 'Payment recorded');
     } catch (err) {
-      console.warn('Invoice persisted to local cache:', err);
+      console.warn('[Invoice] save failed:', err);
+      toast.error('Could not update the invoice', err instanceof Error ? err.message : String(err));
     } finally {
       setUpdating(false);
     }
   };
 
-  const isAdminOrOwner = userRole === 'admin' || userRole === 'owner';
-
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-emerald-400" />
-          <span className="text-xs font-semibold text-slate-200">
-            Invoice & Payment Ledger (1:1 Manual)
-          </span>
-        </div>
-        {invoice?.status === 'paid' ? (
-          <Badge variant="success" className="text-[10px] font-mono">
-            PAID
-          </Badge>
-        ) : (
-          <Badge variant="warning" className="text-[10px] font-mono">
-            UNPAID
-          </Badge>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
-        <div>
-          <div className="text-[10px] uppercase font-mono tracking-wider text-slate-500">
-            Total Agreed Amount
-          </div>
-          <div className="text-lg font-bold text-white flex items-center gap-0.5">
-            <DollarSign className="w-4 h-4 text-emerald-400" />
-            {(invoice?.amount || orderAmount || 0).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-            })}
-          </div>
-          {invoice?.status === 'paid' && invoice.marked_paid_by_name && (
-            <div className="text-[10px] text-emerald-400 mt-0.5 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> Marked paid by{' '}
-              {invoice.marked_paid_by_name}
-            </div>
+    <section className="bg-surface border border-line rounded-2xl p-4">
+      <SectionLabel icon={<Receipt />}>Invoice</SectionLabel>
+      <div className="mt-3 flex items-center gap-4">
+        <div
+          className={cn(
+            'w-11 h-11 rounded-xl flex items-center justify-center shrink-0',
+            paid ? 'bg-aura text-ink' : 'bg-surface-muted text-faint'
           )}
+        >
+          {paid ? <CheckCircle2 className="w-5 h-5" /> : <CircleDashed className="w-5 h-5" />}
         </div>
-
-        {isAdminOrOwner && (
-          <Button
-            size="sm"
-            variant={invoice?.status === 'paid' ? 'outline' : 'primary'}
-            disabled={updating || loading}
-            onClick={handleTogglePayment}
-            className={
-              invoice?.status === 'paid'
-                ? 'text-xs text-slate-300'
-                : 'text-xs bg-emerald-600 hover:bg-emerald-500'
-            }
-          >
-            {updating
-              ? 'Updating...'
-              : invoice?.status === 'paid'
-              ? 'Mark as Unpaid'
-              : 'Mark as Paid'}
+        <div className="flex-1 min-w-0">
+          <div className="font-display text-2xl text-ink tabular-nums">{formatMoney(current.amount || orderAmount)}</div>
+          <div className="text-xs text-muted">
+            {loading
+              ? 'Loading…'
+              : paid
+                ? `Paid${current.marked_paid_by_name ? ` · recorded by ${current.marked_paid_by_name}` : ''}`
+                : 'Not paid yet · settles independently of delivery'}
+          </div>
+        </div>
+        {canToggle && (
+          <Button variant={paid ? 'ghost' : 'success'} size="sm" loading={updating} disabled={loading} onClick={handleToggle}>
+            {paid ? 'Mark unpaid' : 'Mark as paid'}
           </Button>
         )}
       </div>
-
-      <p className="text-[10px] text-slate-500 italic">
-        * Note: Invoice settlement is independent of production and delivery milestones.
-      </p>
-    </div>
+    </section>
   );
 }

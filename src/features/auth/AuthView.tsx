@@ -7,8 +7,19 @@ import {
   OAuthProvider,
 } from 'firebase/auth';
 import { auth } from '../../shared/firebase';
-import { Button, Input } from '../../shared/ui';
-import { LogIn, UserPlus } from 'lucide-react';
+import { Button, Input, Field, Logo, LogoMark } from '../../shared/ui';
+import {
+  UserPlus,
+  ArrowRight,
+  Mail,
+  KeyRound,
+  UserRound,
+  AlertCircle,
+  MailCheck,
+  Inbox,
+  Gem,
+  Send,
+} from 'lucide-react';
 import { useUIStore } from '../../shared/store';
 import { ensureUserProfile } from '../../shared/userProfile';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -41,6 +52,7 @@ export function AuthView() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(authNotice);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
 
@@ -189,191 +201,195 @@ export function AuthView() {
     }
   };
 
+  const handleResetPassword = async () => {
+    setNotice(null);
+    if (!email.trim()) {
+      setError('Enter your email address above first, then we can send you a reset link.');
+      return;
+    }
+    try {
+      setError(null);
+      const { sendPasswordResetEmail } = await import('firebase/auth');
+      await sendPasswordResetEmail(auth, email.trim());
+      setNotice(`If an account exists for ${email.trim()}, a reset link is on its way. Check spam too.`);
+    } catch (e: unknown) {
+      if (e instanceof Error) setError(e.message);
+    }
+  };
+
+  const busy = loading || Boolean(oauthLoading);
+
   return (
-    <div className="min-h-screen bg-[#F5F5F7] flex flex-col justify-center items-center p-6 relative overflow-hidden select-none">
-      <div className="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#CEE269]/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-[#DA8F65]/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="h-full flex bg-canvas animate-fade-in">
+      {/* Brand panel */}
+      <aside className="hidden lg:flex relative w-[44%] max-w-[560px] bg-ink text-white flex-col justify-between p-12 overflow-hidden">
+        <div className="absolute -top-32 -left-24 w-[420px] h-[420px] rounded-full bg-aura/25 blur-3xl" />
+        <div className="absolute -bottom-40 -right-24 w-[460px] h-[460px] rounded-full bg-copper/25 blur-3xl" />
 
-      <div className="w-full max-w-sm glass-floating rounded-3xl p-8 shadow-xl relative z-10 border border-white/80">
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-[#1C1D21] flex items-center justify-center text-white font-mono text-sm font-bold shadow-md mb-3">
-            AD
-          </div>
-          <h1 className="text-xl font-semibold text-[#1C1D21] tracking-tight">
-            Aura Desk
+        <Logo inverse className="relative" />
+
+        <div className="relative">
+          <h1 className="font-display text-[44px] leading-[1.05]">
+            Every piece, from <span className="italic text-aura">brief</span> to{' '}
+            <span className="italic text-copper">brilliance</span>.
           </h1>
-          <p className="text-xs text-[#6B7280] mt-0.5 text-center">
-            {isSignUp ? 'Create new organization account' : 'Sign in to your agency workspace'}
+          <p className="mt-4 text-white/60 text-[15px] max-w-sm">
+            The order desk for your jewelry design studio. Intake, CAD production, review and delivery in one place.
           </p>
-        </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs leading-relaxed">
-            {error}
+          <div className="mt-10 space-y-3">
+            {[
+              { icon: Inbox, title: 'Capture the brief', text: 'Sales agents log every client request.' },
+              { icon: Gem, title: 'Design with focus', text: 'Designers see exactly what is theirs to make.' },
+              { icon: Send, title: 'Deliver with confidence', text: 'Verified WhatsApp hand-off, every time.' },
+            ].map(({ icon: Icon, title, text }) => (
+              <div key={title} className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-white/[0.07] ring-1 ring-white/10 flex items-center justify-center text-aura">
+                  <Icon className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">{title}</div>
+                  <div className="text-[13px] text-white/50">{text}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-
-        {/* Social / SSO Auth Buttons */}
-        <div className="space-y-2 mb-4">
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading || Boolean(oauthLoading)}
-            className="w-full flex items-center justify-center gap-2.5 py-2 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-[#1C1D21] text-xs font-semibold shadow-sm transition-all duration-150 disabled:opacity-50"
-          >
-            {oauthLoading === 'google' ? (
-              <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
-            ) : (
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-            )}
-            <span>Continue with Google</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleAppleSignIn}
-            disabled={loading || Boolean(oauthLoading)}
-            className="w-full flex items-center justify-center gap-2.5 py-2 px-3 rounded-xl border border-gray-900 bg-[#1C1D21] hover:bg-black text-white text-xs font-semibold shadow-sm transition-all duration-150 disabled:opacity-50"
-          >
-            {oauthLoading === 'apple' ? (
-              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.4c.64-.81 1.09-1.94.97-3.07-1.03.04-2.27.69-2.98 1.52-.63.73-1.18 1.9-1.03 3.01 1.15.09 2.39-.62 3.04-1.46z" />
-              </svg>
-            )}
-            <span>Continue with Apple</span>
-          </button>
         </div>
 
-        <div className="relative flex py-2 items-center mb-3">
-          <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink mx-3 text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-            Or with email
-          </span>
-          <div className="flex-grow border-t border-gray-200"></div>
-        </div>
+        <p className="relative text-xs text-white/35">Aura Desk · Desktop workspace</p>
+      </aside>
 
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {isSignUp && (
-            <div>
-              <label className="block text-[11px] font-medium text-[#6B7280] mb-1">
-                Full Name
-              </label>
-              <Input
-                type="text"
-                required
-                placeholder="Your full name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
+      {/* Form */}
+      <main className="flex-1 flex items-center justify-center p-8 aura-backdrop lg:bg-none lg:bg-canvas overflow-y-auto">
+        <div className="w-full max-w-[380px] animate-rise-in">
+          <LogoMark className="lg:hidden w-11 h-11 mb-6" />
+          <h2 className="font-display text-[32px] leading-tight text-ink">
+            {isSignUp ? 'Join your studio' : 'Welcome back'}
+          </h2>
+          <p className="mt-1.5 text-sm text-muted">
+            {isSignUp
+              ? 'Create an account. An owner will approve your role.'
+              : 'Sign in to pick up where your team left off.'}
+          </p>
+
+          {error && (
+            <div className="mt-5 flex gap-2.5 p-3.5 rounded-xl bg-rose-50 ring-1 ring-rose-200 text-rose-800 text-[13px] leading-relaxed">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+          {notice && (
+            <div className="mt-5 flex gap-2.5 p-3.5 rounded-xl bg-aura-soft ring-1 ring-aura text-ink text-[13px] leading-relaxed">
+              <MailCheck className="w-4 h-4 shrink-0 mt-0.5 text-aura-deep" />
+              <span>{notice}</span>
             </div>
           )}
 
-          <div>
-            <label className="block text-[11px] font-medium text-[#6B7280] mb-1">
-              Email Address
-            </label>
-            <Input
-              type="email"
-              required
-              placeholder="name@agency.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+          <div className="mt-6 grid grid-cols-2 gap-2.5">
+            <Button variant="secondary" size="lg" onClick={handleGoogleSignIn} disabled={busy} loading={oauthLoading === 'google'}>
+              {oauthLoading !== 'google' && <GoogleIcon />}
+              Google
+            </Button>
+            <Button variant="primary" size="lg" onClick={handleAppleSignIn} disabled={busy} loading={oauthLoading === 'apple'}>
+              {oauthLoading !== 'apple' && <AppleIcon />}
+              Apple
+            </Button>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-[11px] font-medium text-[#6B7280]">
-                Password
-              </label>
-              {!isSignUp && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!email.trim()) {
-                      setError('Please enter your email address above to receive a password reset link.');
-                      return;
-                    }
-                    try {
-                      setError(null);
-                      const { sendPasswordResetEmail } = await import('firebase/auth');
-                      await sendPasswordResetEmail(auth, email.trim());
-                      setError('✓ Password setup/reset link sent to ' + email.trim() + '. Check your inbox to set your password.');
-                    } catch (e: unknown) {
-                      if (e instanceof Error) setError(e.message);
-                    }
-                  }}
-                  className="text-[10px] text-blue-600 hover:underline font-medium"
-                >
-                  Forgot or need to set password?
-                </button>
-              )}
-            </div>
-            <Input
-              type="password"
-              required
-              placeholder="At least 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-line" />
+            <span className="text-xs text-faint font-medium">or with email</span>
+            <div className="flex-1 h-px bg-line" />
           </div>
 
-          <Button
-            type="submit"
-            className="w-full py-2 text-xs font-semibold mt-1"
-            disabled={loading || Boolean(oauthLoading)}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                Connecting...
-              </span>
-            ) : isSignUp ? (
-              <>
-                <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Register Account
-              </>
-            ) : (
-              <>
-                <LogIn className="w-3.5 h-3.5 mr-1.5" /> Sign In
-              </>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isSignUp && (
+              <Field label="Full name">
+                <Input
+                  required
+                  autoComplete="name"
+                  placeholder="Your full name"
+                  icon={<UserRound />}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
+              </Field>
             )}
-          </Button>
-        </form>
 
-        <div className="mt-5 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-            }}
-            className="text-xs text-[#1C1D21] hover:underline font-medium"
-          >
-            {isSignUp
-              ? 'Already registered? Sign In'
-              : 'New member? Create an account'}
-          </button>
+            <Field label="Email">
+              <Input
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="name@studio.com"
+                icon={<Mail />}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </Field>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-ink-muted">Password</span>
+                {!isSignUp && (
+                  <button type="button" onClick={handleResetPassword} className="text-xs font-semibold text-copper-deep hover:underline">
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+              <Input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                placeholder="At least 6 characters"
+                icon={<KeyRound />}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <Button type="submit" variant="aura" size="lg" className="w-full mt-2" loading={loading} disabled={busy}>
+              {!loading && (isSignUp ? <UserPlus className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />)}
+              {isSignUp ? 'Create account' : 'Sign in'}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-muted">
+            {isSignUp ? 'Already have an account?' : 'New to the studio?'}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError(null);
+                setNotice(null);
+              }}
+              className="font-semibold text-ink hover:underline"
+            >
+              {isSignUp ? 'Sign in' : 'Create an account'}
+            </button>
+          </p>
         </div>
-      </div>
+      </main>
     </div>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden>
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden>
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.4c.64-.81 1.09-1.94.97-3.07-1.03.04-2.27.69-2.98 1.52-.63.73-1.18 1.9-1.03 3.01 1.15.09 2.39-.62 3.04-1.46z" />
+    </svg>
   );
 }

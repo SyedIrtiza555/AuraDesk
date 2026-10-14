@@ -7,6 +7,7 @@ import type {
   PeekMode,
   ActiveEntity,
 } from './types';
+import { isDemo, demoUser } from './demo';
 
 interface UIState {
   // Authentication & current user
@@ -70,7 +71,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  currentUser: null,
+  currentUser: isDemo ? demoUser() : null,
   setCurrentUser: (user) => set({ currentUser: user }),
   authNotice: null,
   setAuthNotice: (notice) => set({ authNotice: notice }),

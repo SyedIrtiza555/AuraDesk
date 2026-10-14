@@ -16,6 +16,22 @@ npx tauri dev               # desktop dev window
 npx tauri build --bundles msi   # needs TAURI_SIGNING_PRIVATE_KEY(+_PASSWORD) env for updater artifacts
 ```
 
+## Branches
+
+- `main` / `v1`: v1.0.0 checkpoint (commit `63810dd`, roles/rules fix). The GitHub release `v1.0.0` MSI is older than this.
+- `beta`: UI overhaul in progress. Don't push `v*` tags casually: `.github/workflows/release.yml` builds and drafts a release on any `v*` tag.
+
+## Design system (beta)
+
+- Tokens live in `src/index.css` (`@theme`): `ink`, `canvas` (warm ivory), `surface`, `line`, `muted`/`faint`, signature `aura` lime and `copper`. Fonts: Fraunces (`font-display`, headings and numbers) and Plus Jakarta Sans (UI), bundled via `@fontsource-variable` so they work offline in Tauri.
+- Primitives are in `src/shared/ui/primitives.tsx` (Button, IconButton, Input, Textarea, Select, Field, Badge, Card, Avatar, EmptyState, SegmentedControl, Modal, Spinner, Kbd), exported through `src/shared/ui/index.ts`. Also there: `toast` + `<Toaster/>` and `confirmDialog()` + `<ConfirmHost/>`. Never use `alert()` or `window.confirm()`.
+- Order status labels, colours, icons, "who acts next" and `needsAttentionFrom()` live in `src/shared/orderStatus.tsx`. Use `<StatusPill>`; don't hand-roll status badges.
+- Minimum text size is 11px; body copy is 13–14px.
+
+## Demo mode (dev only)
+
+`npm run dev`, then open `/?demo` (owner) or `/?demo=admin|sales_agent|designer|pending`. It shows sample data from `src/shared/demo.ts`, skips Firebase sign-in, and doesn't write to Firestore. A pill at the bottom switches roles. Everything is gated on `import.meta.env.DEV`; check the production bundle with `grep -l "auradesk.studio" dist/assets/*.js` (should find nothing).
+
 ## Layout
 
 - `src/App.tsx` — auth gate: splash while `onAuthStateChanged` resolves → `AuthView` → `WaitingRoomView` (unassigned/pending) → `OrderDashboard`. Also creates/elevates the user profile doc.
