@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  OAuthProvider,
+  type User,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../shared/firebase';
@@ -9,6 +13,11 @@ import { Button, Input } from '../../shared/ui';
 import { LogIn, UserPlus } from 'lucide-react';
 import type { UserProfile } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
+
+// Specific owner emails that always receive the owner role
+const OWNER_EMAILS = ['s.irtizahussain@gmail.com'];
+const isOwnerEmail = (email?: string | null) =>
+  Boolean(email && OWNER_EMAILS.includes(email.toLowerCase().trim()));
 
 // Helper: Wrap a promise with a timeout so it never hangs indefinitely
 function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMsg: string): Promise<T> {
@@ -36,6 +45,117 @@ export function AuthView() {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<'google' | 'apple' | null>(null);
+
+  // Common user profile sync for OAuth logins
+  const syncOAuthUser = async (user: User) => {
+    const isOwner = isOwnerEmail(user.email);
+    let profile: UserProfile | null = null;
+
+    try {
+      const snap = await withTimeout(
+        getDoc(doc(db, 'users', user.uid)),
+        5000,
+        'Profile read timeout'
+      );
+      if (snap.exists()) {
+        profile = snap.data() as UserProfile;
+        // Upgrade role if owner email
+        if (isOwner && profile.role !== 'owner') {
+          profile = { ...profile, role: 'owner', status: 'active' };
+          await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+        }
+      }
+    } catch (e) {
+      console.warn('[Aura Desk] OAuth Firestore read warning:', e);
+    }
+
+    if (!profile) {
+      // First-time registration for this OAuth user
+      let isFirstUser = false;
+      try {
+        const usersSnap = await withTimeout(
+          getDocs(collection(db, 'users')),
+          5000,
+          'Firestore check timeout'
+        );
+        isFirstUser = usersSnap.empty;
+      } catch {
+        isFirstUser = false;
+      }
+
+      const role = isOwner || isFirstUser ? 'owner' : 'unassigned';
+      const status = isOwner || isFirstUser ? 'active' : 'pending_approval';
+
+      const nameParts = (user.displayName || user.email || 'Team Member').split(' ');
+      const initials =
+        nameParts.map((p) => p[0]?.toUpperCase()).slice(0, 2).join('') || 'U';
+
+      profile = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'Team Member',
+        role,
+        status,
+        initials,
+        photoURL: user.photoURL || undefined,
+        createdAt: Date.now(),
+      };
+
+      try {
+        await setDoc(doc(db, 'users', user.uid), profile);
+      } catch (e) {
+        console.warn('[Aura Desk] OAuth profile save warning:', e);
+      }
+    }
+
+    setCurrentUser(profile);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setOauthLoading('google');
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      await syncOAuthUser(result.user);
+    } catch (err: unknown) {
+      console.error('[Google Sign-In Error]:', err);
+      if (err instanceof Error) {
+        if (!err.message.includes('auth/popup-closed-by-user')) {
+          setError(err.message);
+        }
+      } else {
+        setError('Google sign in failed');
+      }
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError(null);
+    setOauthLoading('apple');
+    try {
+      const provider = new OAuthProvider('apple.com');
+      provider.addScope('email');
+      provider.addScope('name');
+      const result = await signInWithPopup(auth, provider);
+      await syncOAuthUser(result.user);
+    } catch (err: unknown) {
+      console.error('[Apple Sign-In Error]:', err);
+      if (err instanceof Error) {
+        if (!err.message.includes('auth/popup-closed-by-user')) {
+          setError(err.message);
+        }
+      } else {
+        setError('Apple sign in failed');
+      }
+    } finally {
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,6 +300,64 @@ export function AuthView() {
           </div>
         )}
 
+        {/* Social / SSO Auth Buttons */}
+        <div className="space-y-2 mb-4">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading || Boolean(oauthLoading)}
+            className="w-full flex items-center justify-center gap-2.5 py-2 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-[#1C1D21] text-xs font-semibold shadow-sm transition-all duration-150 disabled:opacity-50"
+          >
+            {oauthLoading === 'google' ? (
+              <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+            )}
+            <span>Continue with Google</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleAppleSignIn}
+            disabled={loading || Boolean(oauthLoading)}
+            className="w-full flex items-center justify-center gap-2.5 py-2 px-3 rounded-xl border border-gray-900 bg-[#1C1D21] hover:bg-black text-white text-xs font-semibold shadow-sm transition-all duration-150 disabled:opacity-50"
+          >
+            {oauthLoading === 'apple' ? (
+              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.4c.64-.81 1.09-1.94.97-3.07-1.03.04-2.27.69-2.98 1.52-.63.73-1.18 1.9-1.03 3.01 1.15.09 2.39-.62 3.04-1.46z" />
+              </svg>
+            )}
+            <span>Continue with Apple</span>
+          </button>
+        </div>
+
+        <div className="relative flex py-2 items-center mb-3">
+          <div className="flex-grow border-t border-gray-200"></div>
+          <span className="flex-shrink mx-3 text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+            Or with email
+          </span>
+          <div className="flex-grow border-t border-gray-200"></div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {isSignUp && (
             <div>
@@ -225,7 +403,7 @@ export function AuthView() {
           <Button
             type="submit"
             className="w-full py-2 text-xs font-semibold mt-1"
-            disabled={loading}
+            disabled={loading || Boolean(oauthLoading)}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">

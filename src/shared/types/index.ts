@@ -8,6 +8,7 @@ export interface UserProfile {
   role: UserRole;
   status: UserStatus;
   initials?: string;
+  photoURL?: string;
   createdAt: number;
   approvedAt?: number;
   approvedBy?: string;
