@@ -42,7 +42,7 @@ npx tauri build --bundles msi   # needs TAURI_SIGNING_PRIVATE_KEY(+_PASSWORD) en
 ## Layout
 
 - `src/App.tsx` — auth gate: splash while `onAuthStateChanged` resolves → `AuthView` → `WaitingRoomView` (unassigned/pending) → `OrderDashboard`. Also creates/elevates the user profile doc.
-- `src/features/auth/` — login/signup, Google loopback OAuth, Apple popup, password reset.
+- `src/features/auth/` — login/signup, Google sign-in (`googleDesktopAuth.ts`: loopback + PKCE in Tauri, popup in a browser), Apple popup (browser only), password reset.
 - `src/features/orders/` — dashboard, 5 views (`views/`), detail peek, modals, `LeftSidebar` (has "Check for Updates").
 - `src/features/team/TeamGovernanceModal.tsx` — owner/admin user list, role select, approve, suspend, reset-password email.
 - `src/features/layout/UpdateNotifier.tsx` — polls `@tauri-apps/plugin-updater` `check()` on start + every 15 min.
@@ -73,7 +73,8 @@ Each fix was pushed by overwriting the same `v1.0.0` release instead of bumping 
 
 ## Open problems (priority order)
 
-1. **Google sign-in hangs.** `AuthView.tsx:148` uses the implicit flow (`response_type=id_token`). Google returns the token in the URL **fragment**, which browsers never send to the loopback server, so `onUrl` never sees `id_token` and the UI spins forever. The fix is the authorization-code + PKCE flow with a **Desktop** OAuth client, exchanging the code at `oauth2.googleapis.com/token`. Also: confirm the hardcoded `client_id` exists in GCP project 467381049765, add the plugin to `package.json`, and handle the "cancelled / never returned" case. Apple still uses `signInWithPopup` and will fail the same way in WebView2. Once loopback works, remove the `window.open` polyfill in `src/main.tsx`; it returns a fake window proxy and caused the "missing initial state" error.
+1. ~~Google sign-in hangs~~ **Rewritten 2026-10-15; needs owner setup and a Tauri test** (see "Google sign-in setup"). `src/features/auth/googleDesktopAuth.ts` runs the authorization-code + PKCE flow: loopback on `127.0.0.1:<random port>` via `tauri-plugin-oauth`, Google in the system browser, `state` check, code exchange at `oauth2.googleapis.com/token`, then `signInWithCredential`. It gives up after 2 minutes, and there's a Cancel link; the loopback server is always stopped. The web dev server keeps `signInWithPopup`. The `window.open` polyfill is removed from `src/main.tsx`. Apple is hidden in the desktop app because Apple only redirects to HTTPS URLs on a verified domain, so a loopback can't work. Apple would need a hosted redirect page. Tests: `tests/googleDesktopAuth.test.ts`.
+   Why the old code failed: the hardcoded `client_id` does not exist (Google's token endpoint returns `invalid_client: The OAuth client was not found`), Desktop clients don't support the implicit flow, and `capabilities/default.json` granted `oauth:default`, which `tauri-plugin-oauth` 2.1.0 doesn't define (it only has `allow-start` / `allow-cancel`), so `tauri build` should have rejected it. The URL fragment wasn't the problem: the plugin's HTML response injects a script that posts the full URL back.
 2. ~~Stale users in Team Governance~~ **Fixed 2026-10-14 (uncommitted), needs rules deploy.** Shared `features/team/TeamMemberList.tsx` (used by the modal and the Team registry view) adds owner-only Remove and "Keep only me" (batch delete). Removed members are signed out via the profile listener in `App.tsx`. Deleting a user in the Firebase Auth console still does not touch Firestore; an `auth.user().onDelete` Cloud Function (Blaze plan) would automate it.
 3. ~~Role sync is client-side only~~ **Fixed (same change).** Rules grant owner by `isOwnerEmail()` or an active `owner` doc; the `shahrukh` match is gone. `src/shared/userProfile.ts` `ensureUserProfile()` is the only place a profile is created, and the Firestore doc is the only source of role/status (no local fake-owner). `OWNER_EMAILS` there must match `isOwnerEmail()` in `firestore.rules`. The owner email bootstrap does not require `email_verified`.
 4. ~~Privilege escalation~~ **Fixed (same change).** Self-create must be `unassigned/pending_approval` (owner email excepted); the owner fallbacks in `AuthView` are removed; self-updates cannot touch `role/status/uid/email/approved*`. Admins can only manage staff roles (`unassigned/sales_agent/designer`). Pending/suspended users get no role permissions in rules and see the waiting room.
@@ -90,8 +91,26 @@ Each fix was pushed by overwriting the same `v1.0.0` release instead of bumping 
 7. **Hygiene.**
    - `.env` is tracked despite `.gitignore`. Firebase web config isn't secret, but untrack it.
    - `firebase.ts` hardcodes fallback config.
-   - `capabilities/default.json` applies to `"windows": ["*"]`, including popup windows the polyfill creates.
+   - `capabilities/default.json` applies to `"windows": ["*"]`. Now that the popup polyfill is gone, only `main` needs it.
    - CSP is `null`.
+
+## Google sign-in setup (owner, one time)
+
+The desktop app needs its own OAuth client; the Firebase web client can't use a loopback redirect.
+
+1. **Create the client.** In Google Cloud Console, open project **aura-cad-2** (number 467381049765). Go to **Google Auth Platform → Clients → Create client** (older UI: APIs & Services → Credentials → Create credentials → OAuth client ID). Choose type **Desktop app** and name it something like `Aura Desk desktop`. Copy the **client ID** and **client secret**. Desktop clients need no redirect URIs; any `http://127.0.0.1:<port>` is accepted.
+2. **Consent screen.** Firebase created one when the Google provider was enabled. If **Audience** says *Testing*, only listed test users can sign in, so add the team's Google accounts or publish it. The `openid email profile` scopes need no Google verification.
+3. **Firebase.** Go to Authentication → Sign-in method → **Google** and make sure it is enabled. Under *Safelist client IDs from external projects*, add the Desktop client ID. Same-project clients are normally accepted, but this rules it out if sign-in fails with `auth/invalid-credential` (audience mismatch).
+4. **Local builds.** Create `.env.local` in the repo root (gitignored via `*.local`):
+   ```
+   VITE_GOOGLE_DESKTOP_CLIENT_ID=<id>.apps.googleusercontent.com
+   VITE_GOOGLE_DESKTOP_CLIENT_SECRET=<secret>
+   ```
+   Vite inlines these at build time, so rebuild (`npx tauri dev` / `npx tauri build --bundles msi`) after changing them. Google's token endpoint still requires the Desktop client's secret even with PKCE. For an installed app it isn't really secret, but keep it out of git: GitHub secret scanning flags it.
+5. **CI.** Add repo secrets `VITE_GOOGLE_DESKTOP_CLIENT_ID` and `VITE_GOOGLE_DESKTOP_CLIENT_SECRET`; `release.yml` passes them to the build. Without them the button shows "Google sign-in isn't set up in this build yet."
+6. **Existing email/password accounts.** Google is a trusted provider for Gmail addresses, so Google sign-in uses the same Firebase user (same uid, same profile doc). If that email was never verified, Firebase drops the old password; use "Forgot password" to set one again.
+
+**To test** (needs Rust, the MSVC build tools and WebView2): run `npx tauri dev` and click **Continue with Google**. The system browser opens. Pick an account, and the tab should say "Return to Aura Desk" while the app signs in. Also check **Cancel**, closing the tab (the spinner resets after 2 minutes), and denying consent. Errors appear in the red banner, with details in the devtools console (`[Google Desktop Auth]`).
 
 ## Working notes
 

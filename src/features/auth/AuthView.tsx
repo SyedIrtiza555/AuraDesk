@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -11,7 +11,35 @@ import { Button, Input, Field, Logo } from '../../shared/ui';
 import { ArrowRight, AlertCircle, MailCheck } from 'lucide-react';
 import { useUIStore } from '../../shared/store';
 import { ensureUserProfile } from '../../shared/userProfile';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { isTauri } from '@tauri-apps/api/core';
+import { GoogleDesktopAuthError, signInWithGoogleDesktop } from './googleDesktopAuth';
+
+const inDesktopApp = isTauri();
+
+// Returns the banner text for a failed Google sign-in, or null when the user simply cancelled.
+function googleErrorMessage(err: unknown): string | null {
+  if (err instanceof GoogleDesktopAuthError) return err.code === 'cancelled' ? null : err.message;
+  const code = (err as { code?: string } | null)?.code ?? '';
+  switch (code) {
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return null;
+    case 'auth/popup-blocked':
+      return 'Your browser blocked the Google sign-in popup. Allow popups for this site and try again.';
+    case 'auth/account-exists-with-different-credential':
+      return 'This email already has an Aura Desk account with a different sign-in method. Sign in with your email and password.';
+    case 'auth/invalid-credential':
+      // Most likely the Desktop OAuth client isn't trusted by Firebase (see CLAUDE.md, "Google sign-in setup").
+      return 'Firebase rejected the Google sign-in. Ask the workspace owner to check the Google provider settings, or sign in with your email and password.';
+    case 'auth/operation-not-allowed':
+      return 'Google sign-in is not enabled for this workspace. Sign in with your email and password.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled.';
+    case 'auth/network-request-failed':
+      return 'Network error while signing in with Google. Check your connection and try again.';
+  }
+  return err instanceof Error ? err.message : 'Google sign-in failed.';
+}
 
 // Helper: Wrap a promise with a timeout so it never hangs indefinitely
 function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMsg: string): Promise<T> {
@@ -50,67 +78,45 @@ export function AuthView() {
     if (authNotice) setAuthNotice(null);
   }, [authNotice, setAuthNotice]);
 
+  // One AbortController per Google attempt. Cancelling (or leaving this view) stops the loopback
+  // server; a stale attempt never touches the spinner or banner of a newer one.
+  const googleAttempt = useRef<AbortController | null>(null);
+  useEffect(() => () => googleAttempt.current?.abort(), []);
+
+  const cancelGoogleSignIn = () => {
+    googleAttempt.current?.abort();
+    googleAttempt.current = null;
+    setOauthLoading(null);
+  };
+
   const handleGoogleSignIn = async () => {
+    googleAttempt.current?.abort();
+    const attempt = new AbortController();
+    googleAttempt.current = attempt;
     setError(null);
     setOauthLoading('google');
     try {
-      // In Tauri desktop environment, launch Google OAuth in default system browser
-      let isTauri = typeof window !== 'undefined' && Boolean((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__);
-
-      if (isTauri) {
-        try {
-          const { start, onUrl, cancel } = await import('@fabianlars/tauri-plugin-oauth');
-          const port = await start({
-            response: '<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:90vh;flex-direction:column;"><h2>Authentication Successful!</h2><p>You can return to Aura Desk now.</p><script>window.close();</script></body></html>',
-          });
-
-          // Listener for loopback callback
-          onUrl(async (url) => {
-            try {
-              await cancel(port);
-              const parsed = new URL(url);
-              const idToken = parsed.searchParams.get('id_token') || new URLSearchParams(parsed.hash.replace('#', '?')).get('id_token');
-              if (idToken) {
-                const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
-                const cred = GoogleAuthProvider.credential(idToken);
-                await signInWithCredential(auth, cred);
-              }
-            } catch (err) {
-              console.warn('[Loopback Auth Error]:', err);
-            }
-          });
-
-          // Open Google OAuth consent in default browser
-          const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=467381049765-m330p657s6j9v7q287k2gfa5q7k8u99u.apps.googleusercontent.com&redirect_uri=${encodeURIComponent(`http://localhost:${port}`)}&response_type=id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
-          await openUrl(authUrl);
-          return;
-        } catch (tauriErr) {
-          console.warn('[Tauri OAuth Fallback]:', tauriErr);
-        }
+      if (inDesktopApp) {
+        // WebView2 can't host Firebase popups; use the system browser + loopback instead.
+        await signInWithGoogleDesktop(attempt.signal);
+      } else {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithPopup(auth, provider);
       }
-
-      // Standard Firebase popup fallback
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       console.error('[Google Sign-In Error]:', err);
-      if (err instanceof Error) {
-        if (err.message.includes('auth/popup-blocked') || err.message.includes('missing initial state')) {
-          setError(
-            'The desktop popup was blocked by Windows security. Please sign in below using your email and password, or click "Forgot or need to set password?" to set one in 1 click.'
-          );
-        } else if (!err.message.includes('auth/popup-closed-by-user')) {
-          setError(err.message);
-        }
-      } else {
-        setError('Google sign in failed');
-      }
+      if (googleAttempt.current === attempt) setError(googleErrorMessage(err));
     } finally {
-      setOauthLoading(null);
+      if (googleAttempt.current === attempt) {
+        googleAttempt.current = null;
+        setOauthLoading(null);
+      }
     }
   };
 
+  // Browser only. Apple only redirects to HTTPS return URLs on a verified domain, so the desktop
+  // loopback used for Google can't work; the button is hidden in the desktop app.
   const handleAppleSignIn = async () => {
     setError(null);
     setOauthLoading('apple');
@@ -123,9 +129,7 @@ export function AuthView() {
       console.error('[Apple Sign-In Error]:', err);
       if (err instanceof Error) {
         if (err.message.includes('auth/popup-blocked')) {
-          setError(
-            'The OAuth popup was blocked by Windows WebView2 security policies. In native desktop apps, Apple blocks embedded browser popups. Please sign in below using your email and password, or use the web workspace.'
-          );
+          setError('Your browser blocked the Apple sign-in popup. Allow popups for this site and try again.');
         } else if (!err.message.includes('auth/popup-closed-by-user')) {
           setError(err.message);
         }
@@ -232,16 +236,33 @@ export function AuthView() {
             </div>
           )}
 
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={handleGoogleSignIn} disabled={busy} loading={oauthLoading === 'google'}>
+          {/* Apple can't redirect to a desktop loopback, so the desktop app offers Google only */}
+          <div className={inDesktopApp ? 'mt-5' : 'mt-5 grid grid-cols-2 gap-2'}>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={busy}
+              loading={oauthLoading === 'google'}
+            >
               {oauthLoading !== 'google' && <GoogleIcon />}
-              Google
+              {inDesktopApp ? 'Continue with Google' : 'Google'}
             </Button>
-            <Button variant="secondary" onClick={handleAppleSignIn} disabled={busy} loading={oauthLoading === 'apple'}>
-              {oauthLoading !== 'apple' && <AppleIcon />}
-              Apple
-            </Button>
+            {!inDesktopApp && (
+              <Button variant="secondary" onClick={handleAppleSignIn} disabled={busy} loading={oauthLoading === 'apple'}>
+                {oauthLoading !== 'apple' && <AppleIcon />}
+                Apple
+              </Button>
+            )}
           </div>
+          {inDesktopApp && oauthLoading === 'google' && (
+            <p className="mt-2 text-xs text-muted text-center">
+              Finish signing in with Google in your browser.{' '}
+              <button type="button" onClick={cancelGoogleSignIn} className="text-accent hover:underline">
+                Cancel
+              </button>
+            </p>
+          )}
 
           <div className="flex items-center gap-3 my-5">
             <div className="flex-1 h-px bg-line" />
