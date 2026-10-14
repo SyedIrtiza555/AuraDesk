@@ -1,6 +1,6 @@
 [package]
 name = "aura_desk"
-version = "1.0.0"
+version = "1.1.0"
 description = "Aura Desk - High-Performance Agency Order Management System"
 authors = ["TheAuditLabs"]
 license = ""

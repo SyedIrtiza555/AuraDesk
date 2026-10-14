@@ -18,10 +18,12 @@ npx tauri build --bundles msi   # needs TAURI_SIGNING_PRIVATE_KEY(+_PASSWORD) en
 
 ## Branches
 
-- `main` / `v1`: v1.0.0 checkpoint (commit `63810dd`, roles/rules fix). The GitHub release `v1.0.0` MSI is older than this.
-- `beta`: UI overhaul in progress. Don't push `v*` tags casually: `.github/workflows/release.yml` builds and drafts a release on any `v*` tag.
+- `main`: 1.1.0, the team release: minimal light design + dark mode, Google desktop sign-in, unique order numbers, incoming-work notifications. `beta` is merged into it.
+- `v1`: the v1.0.0 checkpoint (commit `63810dd`, roles/rules fix). The GitHub release `v1.0.0` MSI is older than this.
+- `beta`: where the next round of UI work happens. Don't push `v*` tags casually: `.github/workflows/release.yml` builds and drafts a release on any `v*` tag.
+- Firestore rules changed in 1.1.0 (`counters/orders`); deploy them before people create orders with 1.1.0.
 
-## Design system (beta)
+## Design system
 
 - **Direction: clean & minimal** (chosen by the owner on 2026-10-14, replacing an earlier expressive ink/lime/serif pass). That means a white canvas, a light `sidebar` grey, hairline `line` borders, zinc neutrals and a **single indigo `accent`**. It is sans-only (Inter Variable, bundled via `@fontsource-variable/inter` for offline Tauri) and compact. Avoid dark blocks, gradients/glows, serif or display fonts, and big radii. `font-display` is just Inter semibold.
 - Tokens live in `src/index.css` (`@theme`): `ink`, `canvas`, `sidebar`, `surface`, `surface-muted`, `line`, `line-strong`, `muted`, `faint`, `accent`, `accent-hover`, `accent-soft`, `accent-deep`. The radius tokens are overridden smaller, so `rounded-xl`/`2xl` stay tight.
@@ -82,14 +84,16 @@ Each fix was pushed by overwriting the same `v1.0.0` release instead of bumping 
    - ~~Unfiltered orders query~~ Fixed: designers query `where('assigned_designer_id','==',uid)`.
    - Price/phone redaction is UI-only; designers can read those fields straight from Firestore.
    - `order_snapshots` is now active-members only, but designers can still read snapshot payloads that include prices.
-   - `InvoicePanel.tsx` calls hooks conditionally (pre-existing oxlint errors).
+   - ~~`InvoicePanel.tsx` calls hooks conditionally~~ Fixed in the redesign.
+   - Fixing the price leak properly means moving `agreed_price`/`client_phone` into a separate admin/agent-only doc (e.g. `orders/{id}/private/finance`). It also means stripping them from `order_snapshots` and migrating existing orders.
 6. **Updater pipeline.**
-   - Version is still `1.0.0` everywhere. Every update needs a bump in `package.json`, `Cargo.toml` and `tauri.conf.json`, plus a new tag.
-   - The release must be published (not draft or prerelease) and include `latest.json`. tauri-action generates it.
+   - Version is **1.1.0** (package.json, package-lock, Cargo.toml, Cargo.lock, tauri.conf.json). Bump all of them for every release.
+   - `release.yml` runs on a `v*` tag or manually (`workflow_dispatch`). It makes a **draft**; the owner publishes it after testing. The release must be published (not draft or prerelease) for `/releases/latest/download/latest.json` to resolve.
+   - The stale repo-root `latest.json` was removed; tauri-action generates the real one as a release asset.
    - The **private signing key exists only on the old machine** (`src-tauri/aura.key` under `C:\Users\TheAuditLabs\...`). Without it, no update can be signed for already-installed copies; a new keypair means every user reinstalls the MSI once. The key must also be added as the `TAURI_SIGNING_PRIVATE_KEY` repo secret for CI.
    - Asset naming: the product name has a space (`Aura Desk_…`) but the uploaded asset is `AuraDesk_…`. Keep `latest.json` URLs consistent with what was actually uploaded.
 7. **Hygiene.**
-   - `.env` is tracked despite `.gitignore`. Firebase web config isn't secret, but untrack it.
+   - ~~`.env` is tracked~~ Untracked in 1.1.0 (kept locally). CI builds use the fallback config in `firebase.ts`.
    - `firebase.ts` hardcodes fallback config.
    - `capabilities/default.json` applies to `"windows": ["*"]`. Now that the popup polyfill is gone, only `main` needs it.
    - CSP is `null`.

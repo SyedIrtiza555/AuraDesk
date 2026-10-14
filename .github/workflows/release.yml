@@ -1,9 +1,12 @@
 name: 'Release Tauri Desktop'
 
 on:
+  # Push a v* tag, or start it from GitHub > Actions > Release Tauri Desktop > Run workflow.
+  # Either way it builds, signs and creates a DRAFT release for the version in tauri.conf.json.
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   publish-tauri:

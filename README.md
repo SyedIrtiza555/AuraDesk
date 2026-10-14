@@ -1,104 +1,92 @@
-# Aura Desk (v1.0.0)
+# Aura Desk
 
-> High-performance, role-based desktop order management & agency workflow workstation built with **Tauri v2**, **React 19**, **TypeScript**, **Tailwind CSS v4**, and **Google Cloud Firestore**.
+The order desk for a jewelry CAD design studio. Sales agents log client requests, admins assign them to designers, designers build and deliver the CAD, and everyone sees what is waiting on them.
 
----
-
-## 🌟 Overview
-
-**Aura Desk** is an agency management solution designed for real-time order lifecycle tracking, cross-functional team coordination, and verifiable client deliverables. It delivers native Windows desktop performance via Rust & WebView2 with offline-resilient local caching.
-
-### 🛡️ Core Capabilities
-
-- **Role-Based Workspaces & Access Control:**
-  - **Owner / Admin:** Complete oversight, user onboarding, role promotions, and financial ledger visibility.
-  - **Sales Agent:** Order creation, client intake, timeline monitoring, and delivery tracking.
-  - **Designer:** Focused production view with automatic redaction of sensitive financials and client contact details.
-  - **Unassigned / Pending:** Secure quarantine waiting room pending admin authorization.
-
-- **Dynamic Multi-View Data Engine:**
-  - **Dense Spreadsheet Table:** Multi-column sorting, sticky headers, and quick-inspect peek drawers.
-  - **Kanban Lifecycle View:** Progression columns from `SUBMITTED_TO_ADMIN` through `IN_PRODUCTION`, `ADMIN_REVIEW`, to `COMPLETED`.
-  - **Kanban Resource View:** Workload swimlanes partitioned by Designer and Sales Agent.
-  - **Visual Cards Grid:** Card overview with project excerpts and avatar indicators.
-  - **Interactive Calendar & Time Machine:** Forward-looking delivery schedules and historical milestone scrubbing.
-
-- **Verification & Security:**
-  - **WhatsApp Safety Gate:** Requires deterministic `<Designer>-<Prospect>-<Order>` code confirmation before orders can be marked delivered.
-  - **Team Governance Console:** Direct in-app role assignment, approval workflows, and password reset email dispatches.
-  - **Single-Instance Enforcement:** Prevents conflicting concurrent processes and ensures reliable window focus.
+Windows desktop app (Tauri v2 + React 19 + Firebase). Current version: **1.1.0**.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## For the team
 
-| Layer | Technology |
+### Install
+
+1. Download the latest `.msi` installer from [Releases](https://github.com/SyedIrtiza555/AuraDesk/releases/latest).
+2. Run it and open **Aura Desk** from the Start menu.
+3. After that the app updates itself. When a new version is out you'll see **Update and restart** in the bottom-right corner.
+
+### Sign in
+
+- Use **Continue with Google**, or an email and password (**Create an account** the first time).
+- New accounts wait on an approval screen until an owner or admin gives them a role. The screen opens your workspace by itself once you're approved.
+
+### Roles
+
+| Role | Can do |
 |---|---|
-| **Desktop Shell** | Tauri v2 (Rust 1.90+, Windows WebView2) |
-| **Frontend Framework** | React 19 + TypeScript + Vite |
-| **Styling** | Tailwind CSS v4 + Radix UI Primitives |
-| **Icons** | Lucide React |
-| **Database & Auth** | Google Cloud Firebase (Firestore + Firebase Auth) |
-| **Local Cache** | IndexedDB via Firestore `persistentLocalCache` |
-| **State Management** | Zustand (ephemeral UI state) + Firestore real-time listeners |
+| **Owner** | Everything, including approving people, changing any role and removing members. |
+| **Admin** | Assign designers, review designs, close orders, mark invoices paid, approve sales agents and designers. |
+| **Sales agent** | Create orders, clarify details with clients when an order is sent back. |
+| **Designer** | Work on orders assigned to them. Prices and client phone numbers are hidden. |
+
+### How an order moves
+
+`New intake` → (admin assigns a designer) → `Assigned` → `In production` → `In review` → `Delivered` → `Completed`
+
+- An admin can send a new intake **back to the agent** if details are missing ("Needs info").
+- In review, an admin either **approves** the design or **requests changes** ("Revision").
+- Delivery needs the WhatsApp delivery code to be typed back, so nothing is marked delivered by accident.
+
+**Needs you** (top-left of Orders, and the dot next to an order number) shows what is waiting on *you*. You also get a desktop notification when something new lands on you.
+
+### Handy shortcuts
+
+| Keys | Action |
+|---|---|
+| `Ctrl` `K` | Search orders |
+| `Ctrl` `N` | New order (agents and admins) |
+| `↑` `↓` | Move through orders in List view |
+| `Esc` | Close the order panel or a dialog |
+
+The theme button next to **Sign out** switches between Light, Dark and Match system.
 
 ---
 
-## 🚀 Getting Started
+## For the owner (one-time setup)
 
-### Prerequisites
+1. **Firestore rules**: after pulling a new version, publish the rules:
+   ```bash
+   npx.cmd firebase-tools deploy --only firestore:rules
+   ```
+2. **Google sign-in in the desktop app**: create a Google OAuth client of type *Desktop app* and add its ID/secret as GitHub secrets. See *Google sign-in setup* in [CLAUDE.md](CLAUDE.md).
+3. **Release signing**: the updater only installs builds signed with the key whose public half is in `src-tauri/tauri.conf.json`. Add the private key as GitHub secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
-- [Node.js](https://nodejs.org/) (v20+ recommended)
-- [Rust & Cargo](https://rustup.rs/) (v1.90+ recommended)
-- [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) (preinstalled on Windows 10/11)
+## Releasing a new version
 
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/SyedIrtiza555/AuraDesk.git
-cd AuraDesk
-
-# Install dependencies
-npm install
-```
-
-### Development Mode
-
-```bash
-# Run with live browser HMR
-npm run dev
-
-# Or launch as desktop app in development
-npx tauri dev
-```
-
-### Production Build
-
-```bash
-# Build desktop bundles (MSI, NSIS, standalone exe)
-npx tauri build
-```
-
-The resulting installers and binaries will be generated inside `src-tauri/target/release/bundle/`.
+1. Bump the version in `package.json`, `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
+2. Merge to `main` and push.
+3. On GitHub, open **Actions → Release Tauri Desktop → Run workflow**, or push a tag `vX.Y.Z`. This builds and signs the MSI and creates a **draft** release with `latest.json`.
+4. Install the draft's MSI on one machine and check it. Then click **Publish release**. Installed apps pick the update up within 15 minutes, or straight away via **Check for updates**.
 
 ---
 
-## 🔐 Configuration & Firebase Setup
+## Development
 
-Configure your Google Cloud Firebase settings in `.env`:
-
-```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+```bash
+npm ci
+npm run dev          # web preview on http://localhost:5173
+npx tauri dev        # desktop window (needs Rust + WebView2)
+npm run lint
+npx tsc -b
+npx vitest run
 ```
 
----
+- **Demo mode** (dev only): open `http://localhost:5173/?demo` to see the app with sample orders and a role switcher, without signing in or touching Firestore.
+- Design tokens are in `src/index.css`. UI primitives are in `src/shared/ui`. Order status logic is in `src/shared/orderStatus.tsx`.
+- Project notes, known issues and decisions are in [CLAUDE.md](CLAUDE.md).
 
-## 📄 License
+## Known limitations
+
+- Price and phone hiding for designers happens in the app. The data still sits in the same Firestore document, so a technical user with database access could read it.
+- Apple sign-in works in a browser only, not in the desktop app.
 
 Proprietary © Aura Desk. All rights reserved.
