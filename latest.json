@@ -1,11 +1,11 @@
 {
+  "pub_date": "2026-10-14T13:39:24Z",
   "version": "1.0.0",
+  "notes": "Aura Desk v1.0.0 - Full In-App Auto-Updater, WebView2 Window.open Polyfill & Instant Password Setup.",
   "platforms": {
     "windows-x86_64": {
       "url": "https://github.com/SyedIrtiza555/AuraDesk/releases/download/v1.0.0/AuraDesk_1.0.0_x64_en-US.msi",
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRSHpOUkZPbFppZGJVZk52OWE0ZWh0VVI4WnFsQkN2SnBwQ0YrSGdGTXF3QkFJMHFtVXNvN0crd1hYcGh1elFhWDQ5ZFQ5V2I2ZVduWG5YOWhRdlppVXg0L3IrQmdrTXdjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxOTY2MDc2CWZpbGU6QXVyYSBEZXNrXzEuMC4wX3g2NF9lbi1VUy5tc2kJdmVyc2lvbjoxLjAuMApaYW5EWWhMTTFhVDVuUWlwYnl6M3RKYUR5YmtRUDFiQmtWMlhMU3VsMThEcEdnMGlsdGVFKzlKbVhaaWF1Q1N4eXlHZnZLSFU1VzZxRmZ1YzBsSVlEUT09Cg=="
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRSHpOUkZPbFppZGVaaFZOMjhnTkEvbVZnRVBtdjlVRHBWdmJMQVFGdllJR2ovbEJ5eFFWdm1QdjBWclA3L3pTN1lVRjJNM0ZWODBsR3dMM3lmVTNLSmRUSFd6NVJQVmdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxOTY3MTMzCWZpbGU6QXVyYSBEZXNrXzEuMC4wX3g2NF9lbi1VUy5tc2kJdmVyc2lvbjoxLjAuMAp2TzJuL2E5YjNhM2EzRjdvZWRnMDR6ZW41UkZTZFplSW5oSzB0dE55NHBPOGNpTVV3dzVLcUZEbzFMQmRBSG1jOU0vb0pjcytYL01jYkJCN1I4WmFEQT09Cg=="
     }
-  },
-  "pub_date": "2026-10-14T13:21:50Z",
-  "notes": "Aura Desk v1.0.0 - Auto-Updater Ready, Instant Password Reset & Owner Role."
+  }
 }

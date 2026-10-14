@@ -186,13 +186,33 @@ export function LeftSidebar({
 
         {/* Admin / Owner Governance Console button inside sidebar */}
         {isAdminOrOwner && (
-          <div className="pt-2">
+          <div className="pt-2 space-y-1">
             <button
               onClick={openTeamModal}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80 transition-colors cursor-pointer"
             >
               <Shield className="w-3.5 h-3.5 text-slate-400" />
               <span>Team & Auth Settings</span>
+            </button>
+
+            <button
+              onClick={async () => {
+                try {
+                  const { check } = await import('@tauri-apps/plugin-updater');
+                  const update = await check();
+                  if (update) {
+                    alert(`Update v${update.version} is available! Click the update prompt at the top right to install.`);
+                  } else {
+                    alert('You are on the latest version of Aura Desk (v1.0.0).');
+                  }
+                } catch (e: unknown) {
+                  alert(e instanceof Error ? e.message : 'Could not check for updates');
+                }
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-xl text-[11px] text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80 transition-colors cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Check for Updates</span>
             </button>
           </div>
         )}

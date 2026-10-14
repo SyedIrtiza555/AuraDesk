@@ -8,6 +8,7 @@ import { AuthView } from './features/auth/AuthView';
 import { WaitingRoomView } from './features/auth/WaitingRoomView';
 import { TeamGovernanceModal } from './features/team/TeamGovernanceModal';
 import { OrderDashboard } from './features/orders/OrderDashboard';
+import { UpdateNotifier } from './features/layout/UpdateNotifier';
 
 const isOwnerEmail = (email?: string | null) => {
   const norm = (email || '').toLowerCase().trim();
@@ -139,6 +140,9 @@ export function App() {
 
       {/* Team Governance Modal */}
       <TeamGovernanceModal />
+
+      {/* Auto-Updater Available Notification & 1-Click Installer */}
+      <UpdateNotifier />
     </div>
   );
 }
