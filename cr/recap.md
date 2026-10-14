@@ -33,3 +33,12 @@
    - **Resolution:** Removed the unconfigured updater plugin initialization and rebuilt the production release bundle via `npx tauri build`.
    - **Deployment:** Installed updated executable to `C:\Users\TheAuditLabs\AppData\Local\Aura Desk\app.exe` and verified live window launch (`Aura Desk`) and Desktop shortcut execution.
 
+6. **Full Rebrand to Aura Desk & v1.0.0 GitHub Release:**
+   - **Rebranding:** Renamed package and binaries to `aura-desk`, updated HTML titles, package manifests, and Cargo configs to v1.0.0.
+   - **Clean Architecture:** Purged unused updater banners, debug artifacts, and sensitive files.
+   - **Team & Auth Governance:** Added inline Password Reset email triggers and direct links to Firebase Auth settings in the Team Governance console.
+   - **Single-Instance Protection:** Enforced single-instance handling to eliminate multi-launch WebView2 profile locking errors.
+   - **New GitHub Repository:** Created and pushed `main` and `v1` branches to [https://github.com/SyedIrtiza555/AuraDesk](https://github.com/SyedIrtiza555/AuraDesk).
+   - **Official Release:** Published GitHub Release [v1.0.0](https://github.com/SyedIrtiza555/AuraDesk/releases/tag/v1.0.0) with downloadable standalone MSI installer.
+
+
