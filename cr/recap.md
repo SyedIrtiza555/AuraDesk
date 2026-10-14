@@ -41,4 +41,9 @@
    - **New GitHub Repository:** Created and pushed `main` and `v1` branches to [https://github.com/SyedIrtiza555/AuraDesk](https://github.com/SyedIrtiza555/AuraDesk).
    - **Official Release:** Published GitHub Release [v1.0.0](https://github.com/SyedIrtiza555/AuraDesk/releases/tag/v1.0.0) with downloadable standalone MSI installer.
 
-
+7. **OAuth Integration, Loading Splash & Owner Permissions:**
+   - **Google & Apple Sign-In:** Integrated Firebase OAuth providers (`GoogleAuthProvider` and `OAuthProvider('apple.com')`) with modern SVG branding and active spinner feedback in [`AuthView.tsx`](file:///C:/Users/TheAuditLabs/Desktop/projects/Aura%20CAD%202/src/features/auth/AuthView.tsx).
+   - **WebView2 OAuth Compatibility:** Added desktop Chrome `userAgent` to [`tauri.conf.json`](file:///C:/Users/TheAuditLabs/Desktop/projects/Aura%20CAD%202/src-tauri/tauri.conf.json) to bypass Google's embedded WebView security blocks (`disallowed_useragent`).
+   - **Instant Branded Loading Screen:** Added a dedicated animated splash screen in [`App.tsx`](file:///C:/Users/TheAuditLabs/Desktop/projects/Aura%20CAD%202/src/App.tsx) while checking auth state (`isAuthChecking`), eliminating the momentary flash of the login page on start.
+   - **Automatic Owner Assignment:** Any sign-in matching `s.irtizahussain@gmail.com` is automatically upgraded to `role: 'owner'` and `status: 'active'`.
+   - **Repository Synchronization & Release:** Pushed clean updates to `main` and `v1` branches of [https://github.com/SyedIrtiza555/AuraDesk](https://github.com/SyedIrtiza555/AuraDesk) and refreshed the MSI installer asset in [GitHub Release v1.0.0](https://github.com/SyedIrtiza555/AuraDesk/releases/tag/v1.0.0).
