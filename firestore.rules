@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper functions for user roles
+    function getUserRole() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : (request.auth.token.email.matches('.*shahrukh.*') ? 'owner' : 'unassigned');
+    }
+
+    function isOwner() {
+      return isAuthenticated() && (
+        getUserRole() == 'owner' || 
+        request.auth.token.email.matches('.*shahrukh.*')
+      );
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'owner');
+    }
+
+    function isDesigner() {
+      return isAuthenticated() && getUserRole() == 'designer';
+    }
+
+    function isSalesAgent() {
+      return isAuthenticated() && getUserRole() == 'sales_agent';
+    }
+
+    // ==========================================
+    // 1. Users Collection
+    // ==========================================
+    match /users/{userId} {
+      // Any authenticated user can read profiles (needed for team lists/display names/checking first user)
+      allow read: if isAuthenticated();
+
+      // Allow users to create their initial profile doc upon registration
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+
+      // Only Owners can update roles, or users can update their own non-role profile fields
+      allow update: if isOwner() || (isAuthenticated() && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']));
+      allow delete: if isOwner();
+    }
+
+    // ==========================================
+    // 2. Orders Collection
+    // ==========================================
+    match /orders/{orderId} {
+      allow read: if isAdmin() || isSalesAgent() 
+        || (isDesigner() && resource.data.assigned_designer_id == request.auth.uid);
+
+      allow create: if isSalesAgent() || isAdmin();
+
+      allow update: if isAdmin()
+        || (isSalesAgent() && resource.data.sales_agent_id == request.auth.uid)
+        || (isDesigner() 
+            && resource.data.assigned_designer_id == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['agreed_price', 'client_phone']));
+      allow delete: if isOwner();
+    }
+
+    // ==========================================
+    // 3. Invoices Collection
+    // ==========================================
+    match /invoices/{orderId} {
+      allow read: if isAdmin() || isSalesAgent();
+      allow create, update: if isAdmin();
+      allow delete: if isOwner();
+    }
+
+    // ==========================================
+    // 4. Order Snapshots (Time Machine)
+    // ==========================================
+    match /order_snapshots/{snapshotId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+    }
+  }
+}
