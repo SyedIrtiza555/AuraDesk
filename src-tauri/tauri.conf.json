@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc1NjI1NjNBNDVENENDMDcKUldRSHpOUkZPbFppZFFQN2xNOE5UU2Zzdkh4TFpkdXhjdEFybGJ5U0puL2s5anNYRDN2WHhlMU4K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1RkQ2MzNCQzhDQkE3NTQKUldSVXA4dklPMlA5MVVWbCtoTUltdEtwOXpBeHA3ZjRIekVHRlhTRFIrQnA5amdSNkJGWG5aZmwK",
       "endpoints": [
         "https://github.com/SyedIrtiza555/AuraDesk/releases/latest/download/latest.json"
       ]
