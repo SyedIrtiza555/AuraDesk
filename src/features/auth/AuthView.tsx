@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -11,7 +11,35 @@ import { Button, Input } from '../../shared/ui';
 import { LogIn, UserPlus } from 'lucide-react';
 import { useUIStore } from '../../shared/store';
 import { ensureUserProfile } from '../../shared/userProfile';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { isTauri } from '@tauri-apps/api/core';
+import { GoogleDesktopAuthError, signInWithGoogleDesktop } from './googleDesktopAuth';
+
+const inDesktopApp = isTauri();
+
+// Returns the banner text for a failed Google sign-in, or null when the user simply cancelled.
+function googleErrorMessage(err: unknown): string | null {
+  if (err instanceof GoogleDesktopAuthError) return err.code === 'cancelled' ? null : err.message;
+  const code = (err as { code?: string } | null)?.code ?? '';
+  switch (code) {
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return null;
+    case 'auth/popup-blocked':
+      return 'Your browser blocked the Google sign-in popup. Allow popups for this site and try again.';
+    case 'auth/account-exists-with-different-credential':
+      return 'This email already has an Aura Desk account with a different sign-in method. Sign in with your email and password.';
+    case 'auth/invalid-credential':
+      // Most likely the Desktop OAuth client isn't trusted by Firebase (see CLAUDE.md, "Google sign-in setup").
+      return 'Firebase rejected the Google sign-in. Ask the workspace owner to check the Google provider settings, or sign in with your email and password.';
+    case 'auth/operation-not-allowed':
+      return 'Google sign-in is not enabled for this workspace. Sign in with your email and password.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled.';
+    case 'auth/network-request-failed':
+      return 'Network error while signing in with Google. Check your connection and try again.';
+  }
+  return err instanceof Error ? err.message : 'Google sign-in failed.';
+}
 
 // Helper: Wrap a promise with a timeout so it never hangs indefinitely
 function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMsg: string): Promise<T> {
@@ -49,67 +77,45 @@ export function AuthView() {
     if (authNotice) setAuthNotice(null);
   }, [authNotice, setAuthNotice]);
 
+  // One AbortController per Google attempt. Cancelling (or leaving this view) stops the loopback
+  // server; a stale attempt never touches the spinner or banner of a newer one.
+  const googleAttempt = useRef<AbortController | null>(null);
+  useEffect(() => () => googleAttempt.current?.abort(), []);
+
+  const cancelGoogleSignIn = () => {
+    googleAttempt.current?.abort();
+    googleAttempt.current = null;
+    setOauthLoading(null);
+  };
+
   const handleGoogleSignIn = async () => {
+    googleAttempt.current?.abort();
+    const attempt = new AbortController();
+    googleAttempt.current = attempt;
     setError(null);
     setOauthLoading('google');
     try {
-      // In Tauri desktop environment, launch Google OAuth in default system browser
-      let isTauri = typeof window !== 'undefined' && Boolean((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__);
-
-      if (isTauri) {
-        try {
-          const { start, onUrl, cancel } = await import('@fabianlars/tauri-plugin-oauth');
-          const port = await start({
-            response: '<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:90vh;flex-direction:column;"><h2>Authentication Successful!</h2><p>You can return to Aura Desk now.</p><script>window.close();</script></body></html>',
-          });
-
-          // Listener for loopback callback
-          onUrl(async (url) => {
-            try {
-              await cancel(port);
-              const parsed = new URL(url);
-              const idToken = parsed.searchParams.get('id_token') || new URLSearchParams(parsed.hash.replace('#', '?')).get('id_token');
-              if (idToken) {
-                const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
-                const cred = GoogleAuthProvider.credential(idToken);
-                await signInWithCredential(auth, cred);
-              }
-            } catch (err) {
-              console.warn('[Loopback Auth Error]:', err);
-            }
-          });
-
-          // Open Google OAuth consent in default browser
-          const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=467381049765-m330p657s6j9v7q287k2gfa5q7k8u99u.apps.googleusercontent.com&redirect_uri=${encodeURIComponent(`http://localhost:${port}`)}&response_type=id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
-          await openUrl(authUrl);
-          return;
-        } catch (tauriErr) {
-          console.warn('[Tauri OAuth Fallback]:', tauriErr);
-        }
+      if (inDesktopApp) {
+        // WebView2 can't host Firebase popups; use the system browser + loopback instead.
+        await signInWithGoogleDesktop(attempt.signal);
+      } else {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await signInWithPopup(auth, provider);
       }
-
-      // Standard Firebase popup fallback
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       console.error('[Google Sign-In Error]:', err);
-      if (err instanceof Error) {
-        if (err.message.includes('auth/popup-blocked') || err.message.includes('missing initial state')) {
-          setError(
-            'The desktop popup was blocked by Windows security. Please sign in below using your email and password, or click "Forgot or need to set password?" to set one in 1 click.'
-          );
-        } else if (!err.message.includes('auth/popup-closed-by-user')) {
-          setError(err.message);
-        }
-      } else {
-        setError('Google sign in failed');
-      }
+      if (googleAttempt.current === attempt) setError(googleErrorMessage(err));
     } finally {
-      setOauthLoading(null);
+      if (googleAttempt.current === attempt) {
+        googleAttempt.current = null;
+        setOauthLoading(null);
+      }
     }
   };
 
+  // Browser only. Apple only redirects to HTTPS return URLs on a verified domain, so the desktop
+  // loopback used for Google can't work; the button is hidden in the desktop app.
   const handleAppleSignIn = async () => {
     setError(null);
     setOauthLoading('apple');
@@ -122,9 +128,7 @@ export function AuthView() {
       console.error('[Apple Sign-In Error]:', err);
       if (err instanceof Error) {
         if (err.message.includes('auth/popup-blocked')) {
-          setError(
-            'The OAuth popup was blocked by Windows WebView2 security policies. In native desktop apps, Apple blocks embedded browser popups. Please sign in below using your email and password, or use the web workspace.'
-          );
+          setError('Your browser blocked the Apple sign-in popup. Allow popups for this site and try again.');
         } else if (!err.message.includes('auth/popup-closed-by-user')) {
           setError(err.message);
         }
@@ -246,21 +250,40 @@ export function AuthView() {
             <span>Continue with Google</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleAppleSignIn}
-            disabled={loading || Boolean(oauthLoading)}
-            className="w-full flex items-center justify-center gap-2.5 py-2 px-3 rounded-xl border border-gray-900 bg-[#1C1D21] hover:bg-black text-white text-xs font-semibold shadow-sm transition-all duration-150 disabled:opacity-50"
-          >
-            {oauthLoading === 'apple' ? (
-              <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.4c.64-.81 1.09-1.94.97-3.07-1.03.04-2.27.69-2.98 1.52-.63.73-1.18 1.9-1.03 3.01 1.15.09 2.39-.62 3.04-1.46z" />
-              </svg>
-            )}
-            <span>Continue with Apple</span>
-          </button>
+          {inDesktopApp && oauthLoading === 'google' && (
+            <p className="text-[11px] text-[#6B7280] text-center leading-relaxed">
+              Finish signing in with Google in your browser.{' '}
+              <button
+                type="button"
+                onClick={cancelGoogleSignIn}
+                className="text-blue-600 hover:underline font-medium"
+              >
+                Cancel
+              </button>
+            </p>
+          )}
+
+          {inDesktopApp ? (
+            <p className="text-[10px] text-gray-400 text-center">
+              Apple sign-in isn't available in the desktop app yet.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAppleSignIn}
+              disabled={loading || Boolean(oauthLoading)}
+              className="w-full flex items-center justify-center gap-2.5 py-2 px-3 rounded-xl border border-gray-900 bg-[#1C1D21] hover:bg-black text-white text-xs font-semibold shadow-sm transition-all duration-150 disabled:opacity-50"
+            >
+              {oauthLoading === 'apple' ? (
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.4c.64-.81 1.09-1.94.97-3.07-1.03.04-2.27.69-2.98 1.52-.63.73-1.18 1.9-1.03 3.01 1.15.09 2.39-.62 3.04-1.46z" />
+                </svg>
+              )}
+              <span>Continue with Apple</span>
+            </button>
+          )}
         </div>
 
         <div className="relative flex py-2 items-center mb-3">
