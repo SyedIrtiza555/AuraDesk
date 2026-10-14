@@ -13,6 +13,7 @@ import { Button, Input } from '../../shared/ui';
 import { LogIn, UserPlus } from 'lucide-react';
 import type { UserProfile } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 // Specific owner emails that always receive the owner role
 const OWNER_EMAILS = ['s.irtizahussain@gmail.com'];
@@ -116,6 +117,43 @@ export function AuthView() {
     setError(null);
     setOauthLoading('google');
     try {
+      // In Tauri desktop environment, launch Google OAuth in default system browser
+      let isTauri = typeof window !== 'undefined' && Boolean((window as any).__TAURI__ || (window as any).__TAURI_INTERNALS__);
+
+      if (isTauri) {
+        try {
+          const { start, onUrl, cancel } = await import('@fabianlars/tauri-plugin-oauth');
+          const port = await start({
+            response: '<!DOCTYPE html><html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:90vh;flex-direction:column;"><h2>Authentication Successful!</h2><p>You can return to Aura Desk now.</p><script>window.close();</script></body></html>',
+          });
+
+          // Listener for loopback callback
+          onUrl(async (url) => {
+            try {
+              await cancel(port);
+              const parsed = new URL(url);
+              const idToken = parsed.searchParams.get('id_token') || new URLSearchParams(parsed.hash.replace('#', '?')).get('id_token');
+              if (idToken) {
+                const { GoogleAuthProvider, signInWithCredential } = await import('firebase/auth');
+                const cred = GoogleAuthProvider.credential(idToken);
+                const res = await signInWithCredential(auth, cred);
+                await syncOAuthUser(res.user);
+              }
+            } catch (err) {
+              console.warn('[Loopback Auth Error]:', err);
+            }
+          });
+
+          // Open Google OAuth consent in default browser
+          const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=467381049765-m330p657s6j9v7q287k2gfa5q7k8u99u.apps.googleusercontent.com&redirect_uri=${encodeURIComponent(`http://localhost:${port}`)}&response_type=id_token&scope=openid%20email%20profile&nonce=${Date.now()}`;
+          await openUrl(authUrl);
+          return;
+        } catch (tauriErr) {
+          console.warn('[Tauri OAuth Fallback]:', tauriErr);
+        }
+      }
+
+      // Standard Firebase popup fallback
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
@@ -123,9 +161,9 @@ export function AuthView() {
     } catch (err: unknown) {
       console.error('[Google Sign-In Error]:', err);
       if (err instanceof Error) {
-        if (err.message.includes('auth/popup-blocked')) {
+        if (err.message.includes('auth/popup-blocked') || err.message.includes('missing initial state')) {
           setError(
-            'The OAuth popup was blocked by Windows WebView2 security policies. In native desktop apps, Google blocks embedded browser popups. Please sign in below using your email and password, or use the web workspace.'
+            'The desktop popup was blocked by Windows security. Please sign in below using your email and password, or click "Forgot or need to set password?" to set one in 1 click.'
           );
         } else if (!err.message.includes('auth/popup-closed-by-user')) {
           setError(err.message);

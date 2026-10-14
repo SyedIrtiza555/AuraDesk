@@ -12,6 +12,8 @@
     "clipboard-manager:default",
     "process:default",
     "process:allow-restart",
-    "updater:default"
+    "updater:default",
+    "oauth:default",
+    "opener:default"
   ]
 }
