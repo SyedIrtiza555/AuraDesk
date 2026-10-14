@@ -46,7 +46,6 @@ export function LeftSidebar({
   const openTeamModal = useUIStore((s) => s.openTeamModal);
 
   const isDesigner = currentUser?.role === 'designer';
-  const isOwner = currentUser?.role === 'owner';
   const isAdminOrOwner = currentUser?.role === 'admin' || currentUser?.role === 'owner';
 
   const handleSignOut = () => {
@@ -185,15 +184,15 @@ export function LeftSidebar({
           );
         })}
 
-        {/* Owner Governance Console button inside sidebar */}
-        {isOwner && (
+        {/* Admin / Owner Governance Console button inside sidebar */}
+        {isAdminOrOwner && (
           <div className="pt-2">
             <button
               onClick={openTeamModal}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-[#6B7280] hover:text-[#1C1D21] hover:bg-slate-100/80 transition-colors"
             >
               <Shield className="w-3.5 h-3.5 text-slate-400" />
-              <span>Team Governance</span>
+              <span>Team & Auth Settings</span>
             </button>
           </div>
         )}

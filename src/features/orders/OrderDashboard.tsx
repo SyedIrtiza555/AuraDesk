@@ -29,6 +29,7 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
   const selectedOrderId = useUIStore((s) => s.selectedOrderId);
   const setSelectedOrder = useUIStore((s) => s.setSelectedOrder);
   const openNewOrderModal = useUIStore((s) => s.openNewOrderModal);
+  const openTeamModal = useUIStore((s) => s.openTeamModal);
   const searchQuery = useUIStore((s) => s.searchQuery);
   const setSearchQuery = useUIStore((s) => s.setSearchQuery);
   const statusFilter = useUIStore((s) => s.statusFilter);
@@ -370,9 +371,20 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
                       <p className="text-xs text-[#6B7280]">
                         Manage user permissions, assign agency roles, and approve new member signups.
                       </p>
-                      <span className="text-[11px] font-mono text-slate-500">
-                        Total Users: {teamUsers.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={openTeamModal}
+                          className="text-xs py-1 flex items-center gap-1.5"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-slate-700" />
+                          <span>Governance & Auth Settings</span>
+                        </Button>
+                        <span className="text-[11px] font-mono text-slate-500">
+                          Total Users: {teamUsers.length}
+                        </span>
+                      </div>
                     </div>
 
                     {teamUsers.length === 0 ? (

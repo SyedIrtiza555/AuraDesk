@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 src-tauri/target
+users.json
+firebase-debug.log
+.env
 
 
 # Editor directories and files

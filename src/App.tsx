@@ -8,7 +8,6 @@ import { AuthView } from './features/auth/AuthView';
 import { WaitingRoomView } from './features/auth/WaitingRoomView';
 import { TeamGovernanceModal } from './features/team/TeamGovernanceModal';
 import { OrderDashboard } from './features/orders/OrderDashboard';
-import { UpdaterBanner } from './features/updater/UpdaterBanner';
 
 export function App() {
   const currentUser = useUIStore((s) => s.currentUser);
@@ -93,9 +92,6 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] text-[#1C1D21] flex flex-col font-sans select-none overflow-hidden">
-      {/* Background Auto-Updater notification banner */}
-      <UpdaterBanner />
-
       {/* Main Workspace with clean, minimal layout and zero visual bloat */}
       <main className="flex-1 flex overflow-hidden">
         <OrderDashboard teamUsers={teamUsers} />

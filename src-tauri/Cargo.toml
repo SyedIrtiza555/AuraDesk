@@ -1,8 +1,8 @@
 [package]
-name = "app"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+name = "aura_desk"
+version = "1.0.0"
+description = "Aura Desk - High-Performance Agency Order Management System"
+authors = ["TheAuditLabs"]
 license = ""
 repository = ""
 edition = "2024"
