@@ -35,9 +35,9 @@ export const toast = {
 };
 
 const TONE = {
-  success: { icon: CheckCircle2, className: 'text-aura' },
-  error: { icon: AlertTriangle, className: 'text-rose-400' },
-  info: { icon: Info, className: 'text-sky-300' },
+  success: { icon: CheckCircle2, className: 'text-emerald-600' },
+  error: { icon: AlertTriangle, className: 'text-rose-600' },
+  info: { icon: Info, className: 'text-accent' },
 };
 
 export function Toaster() {
@@ -45,23 +45,23 @@ export function Toaster() {
   const dismiss = useToastStore((s) => s.dismiss);
 
   return (
-    <div className="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 w-[340px] pointer-events-none" aria-live="polite">
+    <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 w-[320px] pointer-events-none" aria-live="polite">
       {toasts.map((t) => {
         const { icon: Icon, className } = TONE[t.tone];
         return (
           <div
             key={t.id}
-            className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-ink text-white px-4 py-3 shadow-pop animate-rise-in"
+            className="pointer-events-auto flex items-start gap-2.5 rounded-lg bg-surface border border-line text-ink px-3 py-2.5 shadow-pop animate-rise-in"
           >
-            <Icon className={`w-4.5 h-4.5 mt-0.5 shrink-0 ${className}`} />
+            <Icon className={`w-4 h-4 mt-px shrink-0 ${className}`} />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold leading-snug">{t.title}</div>
-              {t.description && <div className="text-xs text-white/65 mt-0.5 leading-relaxed">{t.description}</div>}
+              <div className="text-[13px] font-medium leading-snug">{t.title}</div>
+              {t.description && <div className="text-xs text-muted mt-0.5 leading-relaxed">{t.description}</div>}
             </div>
             <button
               onClick={() => dismiss(t.id)}
               aria-label="Dismiss"
-              className="text-white/40 hover:text-white -mr-1 p-0.5 rounded"
+              className="text-faint hover:text-ink -mr-0.5 p-0.5 rounded"
             >
               <X className="w-3.5 h-3.5" />
             </button>

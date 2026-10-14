@@ -16,7 +16,7 @@ export function KanbanResourceView({ orders, teamUsers }: { orders: Order[]; tea
   const unassigned = orders.filter((o) => !o.assigned_designer_id && o.status !== 'COMPLETED');
 
   return (
-    <div className="h-full flex flex-col gap-3.5">
+    <div className="h-full flex flex-col gap-2.5">
       <SegmentedControl
         size="sm"
         className="self-start"
@@ -28,9 +28,9 @@ export function KanbanResourceView({ orders, teamUsers }: { orders: Order[]; tea
         ]}
       />
 
-      <div className="flex-1 min-h-0 flex gap-3.5 overflow-x-auto pb-2 scrollbar-thin">
+      <div className="flex-1 min-h-0 flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
         {people.length === 0 && (
-          <div className="flex-1 bg-surface border border-line rounded-2xl">
+          <div className="flex-1 border border-line rounded-lg">
             <EmptyState
               icon={<UserX />}
               title={`No active ${tab === 'designers' ? 'designers' : 'sales agents'}`}
@@ -63,7 +63,7 @@ export function KanbanResourceView({ orders, teamUsers }: { orders: Order[]; tea
               load={tab === 'designers' ? load : undefined}
             >
               {memberOrders.length === 0 ? (
-                <div className="h-20 rounded-xl border-2 border-dashed border-line flex items-center justify-center text-xs text-faint">
+                <div className="h-14 rounded-md border border-dashed border-line flex items-center justify-center text-xs text-faint">
                   Free to take work
                 </div>
               ) : (
@@ -93,25 +93,30 @@ function Lane({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn('w-[290px] shrink-0 flex flex-col rounded-2xl', muted ? 'bg-copper-soft/50' : 'bg-ink/[0.035]')}>
-      <div className="px-3.5 pt-3.5 pb-3">
+    <div
+      className={cn(
+        'w-[260px] shrink-0 flex flex-col rounded-lg border',
+        muted ? 'bg-amber-50/50 border-amber-200/70' : 'bg-surface-muted border-line'
+      )}
+    >
+      <div className="px-3 pt-2.5 pb-2">
         <div className="flex items-center gap-2.5">
           {avatar}
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-ink truncate">{title}</div>
+            <div className="text-[13px] font-medium text-ink truncate">{title}</div>
             <div className="text-xs text-muted">{subtitle}</div>
           </div>
         </div>
         {load !== undefined && (
-          <div className="mt-3 h-1.5 rounded-full bg-line overflow-hidden" title={`${Math.round(load * 100)}% of a full bench`}>
+          <div className="mt-2 h-1 rounded-full bg-line overflow-hidden" title={`${Math.round(load * 100)}% of a full bench`}>
             <div
-              className={cn('h-full rounded-full', load >= 1 ? 'bg-rose-400' : load >= 0.6 ? 'bg-copper' : 'bg-aura-deep')}
+              className={cn('h-full rounded-full', load >= 1 ? 'bg-rose-400' : load >= 0.6 ? 'bg-amber-500' : 'bg-accent')}
               style={{ width: `${Math.max(load * 100, 4)}%` }}
             />
           </div>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto px-2.5 pb-2.5 space-y-2.5 scrollbar-thin">{children}</div>
+      <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1.5 scrollbar-thin">{children}</div>
     </div>
   );
 }

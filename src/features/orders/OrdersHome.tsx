@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import type React from 'react';
-import type { Order, OrderViewMode, UserProfile } from '../../shared/types';
+import type { Order, OrderStatus, OrderViewMode, UserProfile } from '../../shared/types';
 import { useUIStore } from '../../shared/store';
-import { SegmentedControl, EmptyState, Button, cn } from '../../shared/ui';
+import { SegmentedControl, EmptyState, Button, Select, cn } from '../../shared/ui';
 import {
   ALL_STATUSES,
   STATUS_META,
@@ -101,82 +101,85 @@ export function OrdersHome({ orders, teamUsers, onUpdateOrder }: OrdersHomeProps
 
   return (
     <div className="h-full flex flex-col">
-      {/* Summary */}
-      <section className="px-7 pt-6 grid grid-cols-2 xl:grid-cols-4 gap-3.5 shrink-0">
-        <button
-          onClick={() => {
-            setOnlyMine(true);
-            setStatusFilter('ALL');
-          }}
-          className={cn(
-            'group relative overflow-hidden text-left rounded-2xl p-4 transition-all',
-            attention.length > 0
-              ? 'bg-ink text-white shadow-pop hover:-translate-y-0.5'
-              : 'bg-surface border border-line shadow-card'
-          )}
-        >
-          {attention.length > 0 && <div className="absolute -top-10 -right-8 w-36 h-36 rounded-full bg-aura/30 blur-2xl" />}
-          <div className="relative flex items-center justify-between">
-            <span className={cn('text-[13px] font-semibold', attention.length > 0 ? 'text-aura' : 'text-muted')}>
-              Needs you
-            </span>
-            <Sparkles className={cn('w-4 h-4', attention.length > 0 ? 'text-aura' : 'text-faint')} />
+      {/* Summary strip */}
+      <section className="px-5 pt-4 shrink-0">
+        <div className="grid grid-cols-4 border border-line rounded-lg divide-x divide-line">
+          <button
+            onClick={() => {
+              setOnlyMine(!onlyMine);
+              setStatusFilter('ALL');
+            }}
+            className={cn(
+              'text-left px-4 py-3 rounded-l-lg transition-colors',
+              onlyMine ? 'bg-accent-soft' : 'hover:bg-surface-muted'
+            )}
+            title={attention.length ? 'Show only orders waiting on you' : undefined}
+          >
+            <Stat
+              icon={Sparkles}
+              label="Needs you"
+              value={String(attention.length)}
+              note={attention.length > 0 ? attentionCopy : "You're all caught up"}
+              accent={attention.length > 0}
+            />
+          </button>
+          <div className="px-4 py-3">
+            <Stat icon={Activity} label="Active" value={String(active.length)} note={`${orders.length} total`} />
           </div>
-          <div className="relative mt-2 font-display text-[40px] leading-none">{attention.length}</div>
-          <div className={cn('relative mt-2 text-xs', attention.length > 0 ? 'text-white/55' : 'text-muted')}>
-            {attention.length > 0 ? attentionCopy : "You're all caught up"}
+          <div className="px-4 py-3">
+            <Stat
+              icon={Eye}
+              label="Review & revisions"
+              value={String(inReview.length)}
+              note={inReview.length ? 'Being checked or fixed' : 'Nothing under review'}
+            />
           </div>
-        </button>
-
-        <StatTile icon={Activity} label="Active orders" value={String(active.length)} note={`${orders.length} total`} />
-        <StatTile
-          icon={Eye}
-          label="Review & revisions"
-          value={String(inReview.length)}
-          note={inReview.length ? 'Being checked or fixed' : 'Nothing under review'}
-        />
-        {isDesigner ? (
-          <StatTile icon={BadgeCheck} label="Completed" value={String(completed.length)} note="Designs signed off" />
-        ) : (
-          <StatTile icon={Gem} label="Open pipeline value" value={formatMoney(pipelineValue)} note="Agreed price of active orders" />
-        )}
-      </section>
-
-      {/* Toolbar */}
-      <section className="px-7 pt-5 pb-3 flex items-start gap-3 shrink-0">
-        <SegmentedControl options={views} value={viewMode} onChange={setActiveViewMode} className="shrink-0" />
-        <div className="h-6 w-px bg-line mx-1 mt-2.5 shrink-0" />
-        <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0 pt-1">
-          <FilterChip active={!onlyMine && statusFilter === 'ALL'} onClick={clearFilters} count={orders.length}>
-            All
-          </FilterChip>
-          {attention.length > 0 && (
-            <FilterChip active={onlyMine} onClick={() => setOnlyMine(!onlyMine)} count={attention.length} tone="aura">
-              Needs you
-            </FilterChip>
-          )}
-          {/* The Pipeline board already groups by status, so per-status chips would be redundant there */}
-          {viewMode !== 'kanban_status' && ALL_STATUSES.filter((s) => statusCounts.get(s)).map((s) => (
-            <FilterChip
-              key={s}
-              active={statusFilter === s}
-              onClick={() => setStatusFilter(statusFilter === s ? 'ALL' : s)}
-              count={statusCounts.get(s)}
-              dot={STATUS_META[s].dot}
-            >
-              {STATUS_META[s].label}
-            </FilterChip>
-          ))}
+          <div className="px-4 py-3">
+            {isDesigner ? (
+              <Stat icon={BadgeCheck} label="Completed" value={String(completed.length)} note="Designs signed off" />
+            ) : (
+              <Stat icon={Gem} label="Open value" value={formatMoney(pipelineValue)} note="Agreed price, active orders" />
+            )}
+          </div>
         </div>
       </section>
 
+      {/* Toolbar */}
+      <section className="px-5 pt-3 pb-2.5 flex items-center gap-2 shrink-0">
+        <SegmentedControl size="sm" options={views} value={viewMode} onChange={setActiveViewMode} className="shrink-0" />
+        <div className="flex-1" />
+        <FilterChip active={onlyMine} onClick={() => setOnlyMine(!onlyMine)} count={attention.length}>
+          Needs you
+        </FilterChip>
+        {/* The Pipeline board already groups by status, so a status filter would be redundant there */}
+        {viewMode !== 'kanban_status' && (
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'ALL')}
+            className={cn('h-6 w-auto text-xs py-0 pl-2', statusFilter !== 'ALL' && 'border-accent/40 text-accent-deep bg-accent-soft')}
+          >
+            <option value="ALL">All statuses · {orders.length}</option>
+            {ALL_STATUSES.filter((s) => statusCounts.get(s)).map((s) => (
+              <option key={s} value={s}>
+                {STATUS_META[s].label} · {statusCounts.get(s)}
+              </option>
+            ))}
+          </Select>
+        )}
+        {hasFilters && (
+          <button onClick={clearFilters} className="h-6 px-1.5 text-xs text-muted hover:text-ink shrink-0">
+            Clear
+          </button>
+        )}
+      </section>
+
       {/* View */}
-      <section className="flex-1 min-h-0 px-7 pb-6">
+      <section className="flex-1 min-h-0 px-5 pb-5">
         {orders.length === 0 ? (
-          <div className="h-full bg-surface border border-line rounded-2xl shadow-card flex items-center justify-center">
+          <div className="h-full border border-line rounded-lg flex items-center justify-center">
             <EmptyState
               icon={<Gem />}
-              title={isDesigner ? 'Nothing on your bench yet' : 'No orders yet'}
+              title={isDesigner ? 'Nothing assigned to you yet' : 'No orders yet'}
               description={
                 isDesigner
                   ? 'When an admin assigns you a design, it shows up here.'
@@ -184,22 +187,22 @@ export function OrdersHome({ orders, teamUsers, onUpdateOrder }: OrdersHomeProps
               }
               action={
                 canCreate && (
-                  <Button variant="aura" onClick={openNewOrderModal}>
-                    <Plus className="w-4 h-4" /> New order
+                  <Button variant="accent" size="sm" onClick={openNewOrderModal}>
+                    <Plus className="w-3.5 h-3.5" /> New order
                   </Button>
                 )
               }
             />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="h-full bg-surface border border-line rounded-2xl shadow-card flex items-center justify-center">
+          <div className="h-full border border-line rounded-lg flex items-center justify-center">
             <EmptyState
               icon={<SearchX />}
               title="No orders match"
               description="Try another search or clear the filters."
               action={
                 hasFilters && (
-                  <Button variant="secondary" onClick={clearFilters}>
+                  <Button variant="secondary" size="sm" onClick={clearFilters}>
                     Clear filters
                   </Button>
                 )
@@ -222,25 +225,29 @@ export function OrdersHome({ orders, teamUsers, onUpdateOrder }: OrdersHomeProps
   );
 }
 
-function StatTile({
+function Stat({
   icon: Icon,
   label,
   value,
   note,
+  accent,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   note: string;
+  accent?: boolean;
 }) {
   return (
-    <div className="rounded-2xl p-4 bg-surface border border-line shadow-card">
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-muted">{label}</span>
-        <Icon className="w-4 h-4 text-faint" />
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <Icon className={cn('w-3.5 h-3.5', accent ? 'text-accent' : 'text-faint')} />
+        {label}
       </div>
-      <div className="mt-2 font-display text-[40px] leading-none text-ink truncate">{value}</div>
-      <div className="mt-2 text-xs text-muted truncate">{note}</div>
+      <div className={cn('mt-1 text-xl font-semibold tabular-nums leading-tight truncate', accent ? 'text-accent' : 'text-ink')}>
+        {value}
+      </div>
+      <div className="mt-0.5 text-[11px] text-faint truncate">{note}</div>
     </div>
   );
 }
@@ -250,33 +257,27 @@ function FilterChip({
   onClick,
   count,
   dot,
-  tone,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   count?: number;
   dot?: string;
-  tone?: 'aura';
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        'h-8 px-3 rounded-full text-[13px] font-medium inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ring-1 ring-inset',
+        'h-6 px-2 rounded-md text-xs inline-flex items-center gap-1.5 whitespace-nowrap transition-colors border',
         active
-          ? tone === 'aura'
-            ? 'bg-aura text-ink ring-aura'
-            : 'bg-ink text-white ring-ink'
-          : 'bg-surface text-ink-muted ring-line hover:ring-line-strong'
+          ? 'bg-accent-soft text-accent-deep border-accent/25 font-medium'
+          : 'bg-surface text-ink-muted border-line hover:border-line-strong hover:text-ink'
       )}
     >
-      {dot && <span className={cn('w-2 h-2 rounded-full', dot)} />}
+      {dot && <span className={cn('w-1.5 h-1.5 rounded-full', dot)} />}
       {children}
-      {count !== undefined && (
-        <span className={cn('text-xs tabular-nums', active ? 'opacity-70' : 'text-faint')}>{count}</span>
-      )}
+      {count !== undefined && <span className={cn('tabular-nums', active ? 'text-accent/70' : 'text-faint')}>{count}</span>}
     </button>
   );
 }

@@ -7,19 +7,8 @@ import {
   OAuthProvider,
 } from 'firebase/auth';
 import { auth } from '../../shared/firebase';
-import { Button, Input, Field, Logo, LogoMark } from '../../shared/ui';
-import {
-  UserPlus,
-  ArrowRight,
-  Mail,
-  KeyRound,
-  UserRound,
-  AlertCircle,
-  MailCheck,
-  Inbox,
-  Gem,
-  Send,
-} from 'lucide-react';
+import { Button, Input, Field, Logo } from '../../shared/ui';
+import { ArrowRight, AlertCircle, MailCheck } from 'lucide-react';
 import { useUIStore } from '../../shared/store';
 import { ensureUserProfile } from '../../shared/userProfile';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -220,96 +209,53 @@ export function AuthView() {
   const busy = loading || Boolean(oauthLoading);
 
   return (
-    <div className="h-full flex bg-canvas animate-fade-in">
-      {/* Brand panel */}
-      <aside className="hidden lg:flex relative w-[44%] max-w-[560px] bg-ink text-white flex-col justify-between p-12 overflow-hidden">
-        <div className="absolute -top-32 -left-24 w-[420px] h-[420px] rounded-full bg-aura/25 blur-3xl" />
-        <div className="absolute -bottom-40 -right-24 w-[460px] h-[460px] rounded-full bg-copper/25 blur-3xl" />
+    <div className="h-full overflow-y-auto bg-surface-muted animate-fade-in">
+      <div className="min-h-full flex flex-col items-center justify-center p-6">
+        <Logo className="mb-6" />
 
-        <Logo inverse className="relative" />
-
-        <div className="relative">
-          <h1 className="font-display text-[44px] leading-[1.05]">
-            Every piece, from <span className="italic text-aura">brief</span> to{' '}
-            <span className="italic text-copper">brilliance</span>.
-          </h1>
-          <p className="mt-4 text-white/60 text-[15px] max-w-sm">
-            The order desk for your jewelry design studio. Intake, CAD production, review and delivery in one place.
-          </p>
-
-          <div className="mt-10 space-y-3">
-            {[
-              { icon: Inbox, title: 'Capture the brief', text: 'Sales agents log every client request.' },
-              { icon: Gem, title: 'Design with focus', text: 'Designers see exactly what is theirs to make.' },
-              { icon: Send, title: 'Deliver with confidence', text: 'Verified WhatsApp hand-off, every time.' },
-            ].map(({ icon: Icon, title, text }) => (
-              <div key={title} className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-white/[0.07] ring-1 ring-white/10 flex items-center justify-center text-aura">
-                  <Icon className="w-4.5 h-4.5" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold">{title}</div>
-                  <div className="text-[13px] text-white/50">{text}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="relative text-xs text-white/35">Aura Desk · Desktop workspace</p>
-      </aside>
-
-      {/* Form */}
-      <main className="flex-1 flex items-center justify-center p-8 aura-backdrop lg:bg-none lg:bg-canvas overflow-y-auto">
-        <div className="w-full max-w-[380px] animate-rise-in">
-          <LogoMark className="lg:hidden w-11 h-11 mb-6" />
-          <h2 className="font-display text-[32px] leading-tight text-ink">
-            {isSignUp ? 'Join your studio' : 'Welcome back'}
-          </h2>
-          <p className="mt-1.5 text-sm text-muted">
-            {isSignUp
-              ? 'Create an account. An owner will approve your role.'
-              : 'Sign in to pick up where your team left off.'}
+        <div className="w-full max-w-[360px] bg-surface border border-line rounded-xl shadow-card p-6 animate-rise-in">
+          <h1 className="text-[17px] font-semibold text-ink">{isSignUp ? 'Create your account' : 'Sign in'}</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {isSignUp ? 'An owner approves your role after you sign up.' : 'Welcome back to your studio workspace.'}
           </p>
 
           {error && (
-            <div className="mt-5 flex gap-2.5 p-3.5 rounded-xl bg-rose-50 ring-1 ring-rose-200 text-rose-800 text-[13px] leading-relaxed">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="mt-4 flex gap-2 p-2.5 rounded-md bg-rose-50 border border-rose-200 text-rose-700 text-xs leading-relaxed">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
               <span>{error}</span>
             </div>
           )}
           {notice && (
-            <div className="mt-5 flex gap-2.5 p-3.5 rounded-xl bg-aura-soft ring-1 ring-aura text-ink text-[13px] leading-relaxed">
-              <MailCheck className="w-4 h-4 shrink-0 mt-0.5 text-aura-deep" />
+            <div className="mt-4 flex gap-2 p-2.5 rounded-md bg-accent-soft border border-accent/20 text-ink text-xs leading-relaxed">
+              <MailCheck className="w-3.5 h-3.5 shrink-0 mt-px text-accent" />
               <span>{notice}</span>
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-2 gap-2.5">
-            <Button variant="secondary" size="lg" onClick={handleGoogleSignIn} disabled={busy} loading={oauthLoading === 'google'}>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={handleGoogleSignIn} disabled={busy} loading={oauthLoading === 'google'}>
               {oauthLoading !== 'google' && <GoogleIcon />}
               Google
             </Button>
-            <Button variant="primary" size="lg" onClick={handleAppleSignIn} disabled={busy} loading={oauthLoading === 'apple'}>
+            <Button variant="secondary" onClick={handleAppleSignIn} disabled={busy} loading={oauthLoading === 'apple'}>
               {oauthLoading !== 'apple' && <AppleIcon />}
               Apple
             </Button>
           </div>
 
-          <div className="flex items-center gap-3 my-6">
+          <div className="flex items-center gap-3 my-5">
             <div className="flex-1 h-px bg-line" />
-            <span className="text-xs text-faint font-medium">or with email</span>
+            <span className="text-[11px] text-faint">or</span>
             <div className="flex-1 h-px bg-line" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {isSignUp && (
               <Field label="Full name">
                 <Input
                   required
                   autoComplete="name"
                   placeholder="Your full name"
-                  icon={<UserRound />}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                 />
@@ -322,17 +268,16 @@ export function AuthView() {
                 required
                 autoComplete="email"
                 placeholder="name@studio.com"
-                icon={<Mail />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </Field>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-ink-muted">Password</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-ink-muted">Password</span>
                 {!isSignUp && (
-                  <button type="button" onClick={handleResetPassword} className="text-xs font-semibold text-copper-deep hover:underline">
+                  <button type="button" onClick={handleResetPassword} className="text-xs text-accent hover:underline">
                     Forgot password?
                   </button>
                 )}
@@ -343,34 +288,33 @@ export function AuthView() {
                 minLength={6}
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 placeholder="At least 6 characters"
-                icon={<KeyRound />}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 
-            <Button type="submit" variant="aura" size="lg" className="w-full mt-2" loading={loading} disabled={busy}>
-              {!loading && (isSignUp ? <UserPlus className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />)}
-              {isSignUp ? 'Create account' : 'Sign in'}
+            <Button type="submit" variant="accent" size="lg" className="w-full !mt-4" loading={loading} disabled={busy}>
+              {isSignUp ? 'Create account' : 'Continue'}
+              {!loading && <ArrowRight className="w-3.5 h-3.5" />}
             </Button>
           </form>
-
-          <p className="mt-6 text-center text-sm text-muted">
-            {isSignUp ? 'Already have an account?' : 'New to the studio?'}{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError(null);
-                setNotice(null);
-              }}
-              className="font-semibold text-ink hover:underline"
-            >
-              {isSignUp ? 'Sign in' : 'Create an account'}
-            </button>
-          </p>
         </div>
-      </main>
+
+        <p className="mt-5 text-[13px] text-muted">
+          {isSignUp ? 'Already have an account?' : 'New to the studio?'}{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError(null);
+              setNotice(null);
+            }}
+            className="font-medium text-accent hover:underline"
+          >
+            {isSignUp ? 'Sign in' : 'Create an account'}
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

@@ -47,15 +47,25 @@ export function NewOrderModal({ onCreateOrder }: NewOrderModalProps) {
 
   return (
     <Modal
+      footer={
+        <>
+          <Button type="button" variant="ghost" onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" form="new-order" variant="accent" loading={submitting}>
+            Submit for assignment
+          </Button>
+        </>
+      }
       open={isOpen}
       onClose={close}
       size="lg"
-      tone="aura"
+      tone="accent"
       icon={<Gem />}
       title="New order"
       description="Capture the client's request. It goes to an admin, who assigns a designer."
     >
-      <form id="new-order" onSubmit={handleSubmit} className="space-y-4">
+      <form id="new-order" onSubmit={handleSubmit} className="space-y-3">
         <Field label="What are we making?">
           <Input
             required
@@ -66,7 +76,7 @@ export function NewOrderModal({ onCreateOrder }: NewOrderModalProps) {
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Client name" icon={<User />}>
             <Input required placeholder="Patrick Archer" value={form.clientName} onChange={set('clientName')} />
           </Field>
@@ -75,7 +85,7 @@ export function NewOrderModal({ onCreateOrder }: NewOrderModalProps) {
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Agreed price (USD)" icon={<DollarSign />}>
             <Input required type="number" min="0" step="0.01" placeholder="1450" value={form.agreedPrice} onChange={set('agreedPrice')} />
           </Field>
@@ -99,14 +109,6 @@ export function NewOrderModal({ onCreateOrder }: NewOrderModalProps) {
         </div>
       </form>
 
-      <div className="mt-6 flex items-center justify-end gap-2.5">
-        <Button type="button" variant="ghost" onClick={close}>
-          Cancel
-        </Button>
-        <Button type="submit" form="new-order" variant="aura" loading={submitting}>
-          Submit for assignment
-        </Button>
-      </div>
     </Modal>
   );
 }

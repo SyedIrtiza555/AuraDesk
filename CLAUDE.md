@@ -23,10 +23,11 @@ npx tauri build --bundles msi   # needs TAURI_SIGNING_PRIVATE_KEY(+_PASSWORD) en
 
 ## Design system (beta)
 
-- Tokens live in `src/index.css` (`@theme`): `ink`, `canvas` (warm ivory), `surface`, `line`, `muted`/`faint`, signature `aura` lime and `copper`. Fonts: Fraunces (`font-display`, headings and numbers) and Plus Jakarta Sans (UI), bundled via `@fontsource-variable` so they work offline in Tauri.
-- Primitives are in `src/shared/ui/primitives.tsx` (Button, IconButton, Input, Textarea, Select, Field, Badge, Card, Avatar, EmptyState, SegmentedControl, Modal, Spinner, Kbd), exported through `src/shared/ui/index.ts`. Also there: `toast` + `<Toaster/>` and `confirmDialog()` + `<ConfirmHost/>`. Never use `alert()` or `window.confirm()`.
+- **Direction: clean & minimal** (chosen by the owner on 2026-10-14, replacing an earlier expressive ink/lime/serif pass). That means a white canvas, a light `sidebar` grey, hairline `line` borders, zinc neutrals and a **single indigo `accent`**. It is sans-only (Inter Variable, bundled via `@fontsource-variable/inter` for offline Tauri) and compact. Avoid dark blocks, gradients/glows, serif or display fonts, and big radii. `font-display` is just Inter semibold.
+- Tokens live in `src/index.css` (`@theme`): `ink`, `canvas`, `sidebar`, `surface`, `surface-muted`, `line`, `line-strong`, `muted`, `faint`, `accent`, `accent-hover`, `accent-soft`, `accent-deep`. The radius tokens are overridden smaller, so `rounded-xl`/`2xl` stay tight.
+- Density: 48px top bar, 220px sidebar, 13px body text, controls h-7/h-8, table rows about 44px. It must fit the 960px minimum window width.
+- Primitives are in `src/shared/ui/primitives.tsx` (Button, IconButton, Input, Textarea, Select, Field, Badge, Card, Avatar, EmptyState, SegmentedControl, Modal with a `footer` prop for actions, Spinner, Kbd), exported through `src/shared/ui/index.ts`. Also there: `toast` + `<Toaster/>` and `confirmDialog()` + `<ConfirmHost/>`. Never use `alert()` or `window.confirm()`.
 - Order status labels, colours, icons, "who acts next" and `needsAttentionFrom()` live in `src/shared/orderStatus.tsx`. Use `<StatusPill>`; don't hand-roll status badges.
-- Minimum text size is 11px; body copy is 13–14px.
 
 ## Demo mode (dev only)
 

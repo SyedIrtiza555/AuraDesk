@@ -8,20 +8,20 @@ export function DemoRoleSwitcher() {
   const switchTo = (value: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set('demo', value);
-    window.location.href = url.toString();
+    window.location.assign(url.toString());
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-1 rounded-full bg-ink/90 backdrop-blur px-1.5 py-1.5 shadow-pop">
-      <span className="flex items-center gap-1.5 pl-2 pr-1 text-[11px] font-semibold text-aura">
+    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-0.5 rounded-lg bg-surface border border-line shadow-pop p-1">
+      <span className="flex items-center gap-1 px-2 text-[11px] font-medium text-accent">
         <FlaskConical className="w-3.5 h-3.5" /> Demo
       </span>
       {DEMO_ROLES.map((r) => (
         <button
           key={r.value}
           onClick={() => switchTo(r.value)}
-          className={`h-7 px-3 rounded-full text-xs font-medium transition-colors ${
-            current === r.value ? 'bg-aura text-ink' : 'text-white/70 hover:text-white hover:bg-white/10'
+          className={`h-6 px-2 rounded text-xs transition-colors ${
+            current === r.value ? 'bg-accent text-white' : 'text-muted hover:text-ink hover:bg-ink/[0.05]'
           }`}
         >
           {r.label}

@@ -69,7 +69,7 @@ function InlineInput({
       onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
       className={cn(
         'w-full bg-transparent rounded-lg px-2 -mx-2 py-1 transition-colors focus:outline-none',
-        !disabled && 'hover:bg-ink/[0.04] focus:bg-surface focus:ring-2 focus:ring-aura',
+        !disabled && 'hover:bg-ink/[0.04] focus:bg-surface focus:ring-2 focus:ring-accent/20',
         className
       )}
       {...rest}
@@ -196,52 +196,52 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
   if (isAdmin && order.status === 'SUBMITTED_TO_ADMIN') {
     actions.push(
       <Button key="esc" variant="secondary" onClick={() => openEscalateModal(order)}>
-        <Undo2 className="w-4 h-4" /> Send back to agent
+        <Undo2 className="w-3.5 h-3.5" /> Send back to agent
       </Button>
     );
   }
   if (isAgent && order.status === 'RETURNED_TO_AGENT') {
     actions.push(
-      <Button key="resub" variant="aura" loading={isSubmitting} onClick={() => transition('SUBMITTED_TO_ADMIN')}>
-        <Send className="w-4 h-4" /> Re-submit to admin
+      <Button key="resub" variant="accent" loading={isSubmitting} onClick={() => transition('SUBMITTED_TO_ADMIN')}>
+        <Send className="w-3.5 h-3.5" /> Re-submit to admin
       </Button>
     );
   }
   if (isDesigner && ['ASSIGNED_TO_DESIGNER', 'IN_PRODUCTION', 'ADMIN_REVIEW'].includes(order.status)) {
     actions.push(
       <Button key="deliver" variant="secondary" onClick={() => openDeliveryModal(order)}>
-        <Truck className="w-4 h-4" /> Mark delivered
+        <Truck className="w-3.5 h-3.5" /> Mark delivered
       </Button>
     );
   }
   if (isDesigner && order.status === 'ASSIGNED_TO_DESIGNER') {
     actions.push(
-      <Button key="start" variant="aura" loading={isSubmitting} onClick={() => transition('IN_PRODUCTION')}>
-        <Play className="w-4 h-4" /> Start production
+      <Button key="start" variant="accent" loading={isSubmitting} onClick={() => transition('IN_PRODUCTION')}>
+        <Play className="w-3.5 h-3.5" /> Start production
       </Button>
     );
   }
   if (isDesigner && (order.status === 'IN_PRODUCTION' || order.status === 'IN_REVISION')) {
     actions.push(
-      <Button key="review" variant="aura" loading={isSubmitting} onClick={() => transition('ADMIN_REVIEW')}>
-        <Send className="w-4 h-4" /> Submit for review
+      <Button key="review" variant="accent" loading={isSubmitting} onClick={() => transition('ADMIN_REVIEW')}>
+        <Send className="w-3.5 h-3.5" /> Submit for review
       </Button>
     );
   }
   if (isAdmin && order.status === 'ADMIN_REVIEW') {
     actions.push(
       <Button key="fix" variant="secondary" loading={isSubmitting} onClick={() => transition('IN_REVISION')}>
-        <RotateCcw className="w-4 h-4" /> Request changes
+        <RotateCcw className="w-3.5 h-3.5" /> Request changes
       </Button>,
-      <Button key="approve" variant="aura" loading={isSubmitting} onClick={() => transition('IN_PRODUCTION')}>
-        <Check className="w-4 h-4" /> Approve design
+      <Button key="approve" variant="accent" loading={isSubmitting} onClick={() => transition('IN_PRODUCTION')}>
+        <Check className="w-3.5 h-3.5" /> Approve design
       </Button>
     );
   }
   if (isAdmin && order.status === 'DELIVERED') {
     actions.push(
-      <Button key="complete" variant="aura" loading={isSubmitting} onClick={() => transition('COMPLETED')}>
-        <CheckCircle2 className="w-4 h-4" /> Complete order
+      <Button key="complete" variant="accent" loading={isSubmitting} onClick={() => transition('COMPLETED')}>
+        <CheckCircle2 className="w-3.5 h-3.5" /> Complete order
       </Button>
     );
   }
@@ -251,18 +251,18 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
     peekMode === 'full'
       ? 'fixed inset-0 z-50'
       : peekMode === 'center'
-        ? 'fixed inset-6 md:inset-x-[12%] md:inset-y-10 z-50 rounded-3xl animate-rise-in'
-        : 'fixed inset-y-0 right-0 z-40 w-full max-w-[620px] border-l border-line animate-slide-in-right';
+        ? 'fixed inset-6 md:inset-x-[12%] md:inset-y-10 z-50 rounded-xl border border-line animate-rise-in'
+        : 'fixed inset-y-0 right-0 z-40 w-full max-w-[560px] border-l border-line animate-slide-in-right';
 
   const stepIndex = PIPELINE.indexOf(order.status);
 
   return (
     <>
-      {peekMode !== 'side' && <div className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />}
+      {peekMode !== 'side' && <div className="fixed inset-0 z-40 bg-ink/20 animate-fade-in" onClick={onClose} />}
 
       <div className={cn(container, 'bg-canvas shadow-pop flex flex-col overflow-hidden')}>
         {/* Header */}
-        <div className="h-14 px-4 flex items-center gap-2 border-b border-line bg-surface shrink-0">
+        <div className="h-11 px-3 flex items-center gap-2 border-b border-line bg-surface shrink-0">
           <button
             onClick={handleCopyCode}
             className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg bg-surface-muted text-xs font-semibold text-muted hover:text-ink tabular-nums"
@@ -290,7 +290,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className={cn('mx-auto px-6 py-6 space-y-5', peekMode === 'side' ? 'max-w-none' : 'max-w-3xl')}>
+          <div className={cn('mx-auto px-5 py-4 space-y-4', peekMode === 'side' ? 'max-w-none' : 'max-w-3xl')}>
             {/* Title */}
             <div>
               <InlineInput
@@ -299,7 +299,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
                 onCommit={() => commit('title', draft.title.trim())}
                 disabled={!canEdit}
                 placeholder="Order title"
-                className="font-display text-[28px] leading-tight text-ink"
+                className="text-[18px] font-semibold leading-tight text-ink"
               />
               <div className="mt-1 flex items-center gap-3 text-[13px] text-muted">
                 <span>Created {new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -314,7 +314,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
                       set('due')(e.target.value);
                       if (e.target.value) save({ due_date: new Date(e.target.value).getTime() });
                     }}
-                    className="bg-transparent rounded-md px-1 hover:bg-ink/[0.04] focus:outline-none focus:ring-2 focus:ring-aura text-ink font-medium"
+                    className="bg-transparent rounded-md px-1 hover:bg-ink/[0.04] focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink font-medium"
                   />
                 </label>
               </div>
@@ -329,7 +329,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
                       'h-1.5 rounded-full',
                       order.status === 'RETURNED_TO_AGENT'
                         ? i === 0 ? 'bg-rose-400' : 'bg-line'
-                        : i < stepIndex ? 'bg-ink' : i === stepIndex ? STATUS_META[s].bar : 'bg-line'
+                        : i < stepIndex ? 'bg-accent' : i === stepIndex ? STATUS_META[s].bar : 'bg-line'
                     )}
                   />
                 </div>
@@ -339,30 +339,26 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
             {/* Next step */}
             <div
               className={cn(
-                'relative overflow-hidden rounded-2xl p-4 flex gap-3.5',
-                mine ? 'bg-ink text-white' : 'bg-surface border border-line'
+                'rounded-md px-3 py-2.5 flex gap-2.5 border',
+                mine ? 'bg-accent-soft border-accent/20' : 'bg-surface-muted border-line'
               )}
             >
-              {mine && <div className="absolute -top-12 -right-10 w-40 h-40 rounded-full bg-aura/25 blur-2xl" />}
-              <div
-                className={cn(
-                  'relative w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
-                  mine ? 'bg-aura text-ink' : 'bg-surface-muted text-muted'
-                )}
-              >
-                {mine ? <Sparkles className="w-5 h-5" /> : <meta.icon className="w-5 h-5" />}
-              </div>
-              <div className="relative flex-1 min-w-0">
-                <div className={cn('text-sm font-semibold', mine ? 'text-aura' : 'text-ink')}>
+              {mine ? (
+                <Sparkles className="w-4 h-4 text-accent mt-px shrink-0" />
+              ) : (
+                <meta.icon className="w-4 h-4 text-muted mt-px shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className={cn('text-[13px] font-medium', mine ? 'text-accent-deep' : 'text-ink')}>
                   {mine ? 'Your move' : meta.label}
                 </div>
-                <div className={cn('text-[13px] mt-0.5', mine ? 'text-white/70' : 'text-muted')}>
+                <div className="text-xs text-muted mt-0.5">
                   {isAdmin && order.status === 'SUBMITTED_TO_ADMIN'
                     ? 'Pick a designer below to assign it, or send it back if details are missing.'
                     : meta.hint}
                 </div>
                 {order.status === 'DELIVERED' && order.delivery_code && (
-                  <div className={cn('mt-2 text-xs font-mono', mine ? 'text-white/60' : 'text-muted')} data-selectable>
+                  <div className="mt-1.5 text-xs font-mono text-muted" data-selectable>
                     Delivery code: {order.delivery_code}
                   </div>
                 )}
@@ -370,17 +366,17 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
             </div>
 
             {order.status === 'RETURNED_TO_AGENT' && order.escalation_note && (
-              <div className="flex gap-3 p-4 rounded-2xl bg-rose-50 ring-1 ring-rose-200">
+              <div className="flex gap-2.5 px-3 py-2.5 rounded-md bg-rose-50 border border-rose-200">
                 <AlertTriangle className="w-4.5 h-4.5 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <div className="text-sm font-semibold text-rose-800">What the admin needs</div>
+                  <div className="text-[13px] font-medium text-rose-800">What the admin needs</div>
                   <p className="text-[13px] text-rose-700 mt-0.5 leading-relaxed">{order.escalation_note}</p>
                 </div>
               </div>
             )}
 
             {/* Facts */}
-            <div className={cn('grid gap-3.5', peekMode === 'side' ? 'grid-cols-2' : 'grid-cols-3')}>
+            <div className={cn('grid gap-2', peekMode === 'side' ? 'grid-cols-2' : 'grid-cols-3')}>
               <FactCard label="Client" icon={<Users />}>
                 <InlineInput
                   value={draft.client_name}
@@ -410,14 +406,14 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
                   <Redacted>Hidden for designers</Redacted>
                 ) : (
                   <div className="flex items-baseline gap-0.5">
-                    <span className="font-display text-2xl text-muted">$</span>
+                    <span className="text-lg font-semibold text-faint">$</span>
                     <InlineInput
                       type="number"
                       value={draft.agreed_price}
                       onChange={set('agreed_price')}
                       onCommit={() => commit('agreed_price', parseFloat(draft.agreed_price) || 0)}
                       placeholder="0"
-                      className="font-display text-2xl text-ink tabular-nums"
+                      className="text-lg font-semibold text-ink tabular-nums"
                     />
                   </div>
                 )}
@@ -450,7 +446,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
             </div>
 
             {/* Brief */}
-            <section className="bg-surface border border-line rounded-2xl p-4">
+            <section className="bg-surface border border-line rounded-md p-3">
               <SectionLabel icon={<FileText />}>Design brief</SectionLabel>
               <textarea
                 rows={4}
@@ -459,18 +455,18 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
                 onChange={(e) => set('project_brief')(e.target.value)}
                 onBlur={() => commit('project_brief', draft.project_brief.trim())}
                 placeholder="Metal, stones, dimensions, finger size, references…"
-                className="mt-2 w-full bg-transparent text-sm text-ink leading-relaxed resize-none rounded-lg px-2 -mx-2 py-1 hover:bg-ink/[0.03] focus:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-aura disabled:hover:bg-transparent"
+                className="mt-1.5 w-full bg-transparent text-[13px] text-ink leading-relaxed resize-none rounded-lg px-2 -mx-2 py-1 hover:bg-ink/[0.03] focus:bg-surface-muted focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:hover:bg-transparent"
               />
             </section>
 
             {/* Revisions */}
-            <section className="bg-surface border border-line rounded-2xl p-4">
+            <section className="bg-surface border border-line rounded-md p-3">
               <div className="flex items-center justify-between">
                 <SectionLabel icon={<MessageSquare />}>Revision notes</SectionLabel>
                 <span className="text-xs text-faint">{(order.revisions || []).length}</span>
               </div>
 
-              <div className="mt-3 space-y-3">
+              <div className="mt-2.5 space-y-2.5">
                 {(order.revisions || []).length === 0 && (
                   <p className="text-[13px] text-faint">No notes yet. Feedback between admins and the designer shows up here.</p>
                 )}
@@ -479,12 +475,12 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
                   return (
                     <div key={rev.id} className={cn('flex gap-2.5', fromMe && 'flex-row-reverse')}>
                       <Avatar name={rev.authorName} size="sm" />
-                      <div className={cn('max-w-[80%] rounded-2xl px-3.5 py-2.5', fromMe ? 'bg-ink text-white' : 'bg-surface-muted')}>
-                        <div className={cn('text-[11px] font-semibold', fromMe ? 'text-aura' : 'text-muted')}>
+                      <div className={cn('max-w-[80%] rounded-lg px-3 py-2', fromMe ? 'bg-accent-soft' : 'bg-surface-muted')}>
+                        <div className={cn('text-[11px] font-medium', fromMe ? 'text-accent-deep' : 'text-muted')}>
                           {rev.authorName} ·{' '}
                           {new Date(rev.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
-                        <p className="text-sm mt-0.5 leading-relaxed" data-selectable>{rev.message}</p>
+                        <p className="text-[13px] mt-0.5 leading-relaxed" data-selectable>{rev.message}</p>
                       </div>
                     </div>
                   );
@@ -492,13 +488,13 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
               </div>
 
               {(isAdmin || isDesigner) && (
-                <form onSubmit={handleAddRevision} className="mt-4 flex gap-2">
+                <form onSubmit={handleAddRevision} className="mt-3 flex gap-1.5">
                   <input
                     type="text"
                     placeholder={isAdmin ? 'Request a change… (moves the order to Revision)' : 'Reply to the admin…'}
                     value={revisionText}
                     onChange={(e) => setRevisionText(e.target.value)}
-                    className="flex-1 h-10 px-3.5 bg-surface-muted border border-line rounded-xl text-sm focus:outline-none focus:border-ink focus:ring-2 focus:ring-aura/60"
+                    className="flex-1 h-8 px-2.5 bg-surface border border-line-strong rounded-md text-[13px] focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                   />
                   <Button type="submit" disabled={!revisionText.trim()} loading={isSubmitting}>
                     <Send className="w-4 h-4" />
@@ -522,7 +518,7 @@ export function OrderDetail({ order, teamUsers, onUpdateOrder, onClose }: OrderD
 
         {/* Action bar */}
         {actions.length > 0 && (
-          <div className="px-6 py-3.5 bg-surface border-t border-line flex items-center justify-end gap-2.5 shrink-0">
+          <div className="px-4 py-2.5 bg-surface border-t border-line flex items-center justify-end gap-2 shrink-0">
             {actions}
           </div>
         )}
@@ -543,7 +539,7 @@ function FactCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn('bg-surface border border-line rounded-2xl p-4 space-y-1.5', className)}>
+    <div className={cn('bg-surface border border-line rounded-md p-3 space-y-1.5', className)}>
       <SectionLabel icon={icon}>{label}</SectionLabel>
       {children}
     </div>
@@ -586,7 +582,7 @@ function PersonPicker({
         <Select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={cn('h-9 text-[13px]', highlight && !value && 'ring-2 ring-aura border-aura-deep')}
+          className={cn('h-8 text-[13px]', highlight && !value && 'ring-2 ring-accent/20 border-accent')}
         >
           <option value="">{options.length ? emptyLabel : 'No active people in this role'}</option>
           {options.map((p) => (
@@ -596,12 +592,12 @@ function PersonPicker({
           ))}
         </Select>
       ) : name ? (
-        <div className="flex items-center gap-2 text-sm font-medium text-ink">
+        <div className="flex items-center gap-2 text-[13px] font-medium text-ink">
           <Avatar size="xs" name={name} initials={initials} />
           {name}
         </div>
       ) : (
-        <div className="text-sm text-faint">Not assigned</div>
+        <div className="text-[13px] text-faint">Not assigned</div>
       )}
     </div>
   );

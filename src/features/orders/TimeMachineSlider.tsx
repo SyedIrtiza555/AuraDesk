@@ -40,7 +40,7 @@ export function TimeMachineSlider({ order }: { order: Order }) {
   const active = snapshots[index];
 
   return (
-    <section className="bg-surface border border-line rounded-2xl p-4">
+    <section className="bg-surface border border-line rounded-md p-3">
       <div className="flex items-center justify-between">
         <SectionLabel icon={<History />}>History</SectionLabel>
         {snapshots.length > 0 && (

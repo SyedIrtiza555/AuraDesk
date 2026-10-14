@@ -70,17 +70,17 @@ export function TableView({ orders }: { orders: Order[] }) {
   };
 
   return (
-    <div className="h-full bg-surface border border-line rounded-2xl shadow-card overflow-hidden flex flex-col">
+    <div className="h-full bg-surface border border-line rounded-lg overflow-hidden flex flex-col">
       <div className="flex-1 overflow-auto">
-        <table className="w-full text-left border-collapse text-sm">
+        <table className="w-full text-left border-collapse text-[13px]">
           <thead className="sticky top-0 z-10 bg-surface-muted/95 backdrop-blur border-b border-line text-xs text-muted">
             <tr>
-              <SortHeader field="orderNumber" label="Order" className="pl-5" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
+              <SortHeader field="orderNumber" label="Order" className="pl-4" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
               <SortHeader field="client_name" label="Client" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
               <SortHeader field="status" label="Status" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
               <SortHeader field="assigned_designer_name" label="Designer" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
               <SortHeader field="due" label="Due" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />
-              {!isDesigner && <SortHeader field="agreed_price" label="Value" className="text-right pr-5" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />}
+              {!isDesigner && <SortHeader field="agreed_price" label="Value" className="text-right pr-4" sortField={sortField} sortAsc={sortAsc} onSort={handleSort} />}
             </tr>
           </thead>
           <tbody>
@@ -97,14 +97,13 @@ export function TableView({ orders }: { orders: Order[] }) {
                   onClick={() => setSelectedOrder(order, 'side')}
                   className={cn(
                     'group border-b border-line/70 last:border-0 cursor-pointer transition-colors',
-                    isSelected ? 'bg-aura-soft/60' : 'hover:bg-surface-muted'
+                    isSelected ? 'bg-accent-soft/60' : 'hover:bg-surface-muted'
                   )}
                 >
-                  <td className="py-3 pl-5 pr-4 relative">
-                    {(isSelected || mine) && (
-                      <span className={cn('absolute left-0 top-2 bottom-2 w-1 rounded-r-full', isSelected ? 'bg-ink' : 'bg-aura')} />
-                    )}
-                    <div className="flex items-center gap-1.5 text-xs text-faint tabular-nums">
+                  <td className="py-2 pl-4 pr-3 relative w-full min-w-[180px]">
+                    {isSelected && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r bg-accent" />}
+                    <div className="flex items-center gap-1.5 text-[11px] text-faint tabular-nums">
+                      {mine && <span className="w-1.5 h-1.5 rounded-full bg-accent" title="Waiting on you" />}
                       {order.orderNumber}
                       <button
                         onClick={(e) => handleCopy(e, order.orderNumber)}
@@ -117,31 +116,30 @@ export function TableView({ orders }: { orders: Order[] }) {
                           <Copy className="w-3 h-3" />
                         )}
                       </button>
-                      {mine && <span className="text-[10px] font-bold uppercase text-aura-deep">· Your move</span>}
                     </div>
-                    <div className="font-semibold text-ink line-clamp-1 mt-0.5">{order.title}</div>
+                    <div className="font-medium text-ink line-clamp-1">{order.title}</div>
                   </td>
-                  <td className="py-3 px-4 text-ink-muted whitespace-nowrap">{order.client_name}</td>
-                  <td className="py-3 px-4 whitespace-nowrap">
+                  <td className="py-2 px-3 text-ink-muted whitespace-nowrap">{order.client_name}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">
                     <StatusPill status={order.status} size="sm" />
                   </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
+                  <td className="py-2 px-3 whitespace-nowrap">
                     {order.assigned_designer_name ? (
                       <span className="inline-flex items-center gap-2 text-ink-muted">
                         <Avatar size="xs" name={order.assigned_designer_name} initials={order.assigned_designer_initials} />
-                        {order.assigned_designer_name}
+                        <span className="hidden xl:inline">{order.assigned_designer_name}</span>
                       </span>
                     ) : (
                       <span className="text-faint">Not assigned</span>
                     )}
                   </td>
-                  <td className={cn('py-3 px-4 whitespace-nowrap', late ? 'text-rose-600 font-semibold' : 'text-muted')}>
+                  <td className={cn('py-2 px-3 whitespace-nowrap', late ? 'text-rose-600 font-semibold' : 'text-muted')}>
                     {open
                       ? relativeDue(due, now)
                       : new Date(due).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </td>
                   {!isDesigner && (
-                    <td className="py-3 pl-4 pr-5 text-right font-semibold text-ink tabular-nums whitespace-nowrap">
+                    <td className="py-2 pl-3 pr-4 text-right font-medium text-ink tabular-nums whitespace-nowrap">
                       {formatMoney(order.agreed_price)}
                     </td>
                   )}
@@ -172,7 +170,7 @@ function SortHeader({
 }) {
   const active = sortField === field;
   return (
-    <th className={cn('py-3 px-4 font-semibold', className)}>
+    <th className={cn('py-2 px-3 font-medium', className)}>
       <button onClick={() => onSort(field)} className={cn('inline-flex items-center gap-1 hover:text-ink transition-colors', active && 'text-ink')}>
         {label}
         {active && (sortAsc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}

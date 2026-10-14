@@ -125,11 +125,11 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
     const busy = busyUid === member.uid || busyUid === 'bulk';
 
     return (
-      <div key={member.uid} className="px-4 py-3.5 flex items-center gap-3.5 hover:bg-surface-muted/70 transition-colors">
-        <Avatar name={member.displayName} initials={member.initials} size="md" />
+      <div key={member.uid} className="px-3 py-2 flex items-center gap-2.5 hover:bg-surface-muted transition-colors">
+        <Avatar name={member.displayName} initials={member.initials} size="sm" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-ink truncate">{member.displayName}</span>
+            <span className="text-[13px] font-medium text-ink truncate">{member.displayName}</span>
             {isMe && <span className="text-xs text-faint">(you)</span>}
             {member.role === 'owner' && <Badge variant="ink">Owner</Badge>}
             {isPending && <Badge variant="warning">Waiting for approval</Badge>}
@@ -146,7 +146,7 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
                   defaultValue=""
                   disabled={busy}
                   onChange={(e) => e.target.value && handleRole(member, e.target.value as UserRole)}
-                  className="h-8 w-44 text-[13px]"
+                  className="h-7 w-36 text-xs"
                 >
                   <option value="" disabled>
                     Approve as…
@@ -159,7 +159,7 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
                       </option>
                     ))}
                 </Select>
-                <Button size="sm" variant="aura" disabled={busy} onClick={() => handleRole(member, 'designer')}>
+                <Button size="sm" variant="accent" disabled={busy} onClick={() => handleRole(member, 'designer')}>
                   <Check className="w-3.5 h-3.5" /> Designer
                 </Button>
               </>
@@ -168,7 +168,7 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
                 value={member.role}
                 disabled={busy}
                 onChange={(e) => handleRole(member, e.target.value as UserRole)}
-                className="h-8 w-36 text-[13px]"
+                className="h-7 w-32 text-xs"
               >
                 {roleOptions.map((r) => (
                   <option key={r} value={r}>
@@ -208,12 +208,12 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
     <div className="space-y-5">
       {pending.length > 0 && (
         <section>
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-ink mb-2.5">
-            <span className="w-2 h-2 rounded-full bg-copper animate-aura-pulse" />
+          <h3 className="flex items-center gap-2 text-xs font-medium text-muted mb-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
             Waiting for approval
             <span className="text-muted font-normal">· {pending.length}</span>
           </h3>
-          <div className="bg-surface border-2 border-copper/40 rounded-2xl divide-y divide-line/70 overflow-hidden">
+          <div className="bg-surface border border-amber-200 rounded-lg divide-y divide-line overflow-hidden">
             {pending.map(row)}
           </div>
         </section>
@@ -221,7 +221,7 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
 
       <section>
         <div className="flex items-center justify-between mb-2.5">
-          <h3 className="text-sm font-semibold text-ink">
+          <h3 className="text-xs font-medium text-muted">
             Members <span className="text-muted font-normal">· {rest.length}</span>
           </h3>
           {isOwner && (
@@ -230,7 +230,7 @@ export function TeamMemberList({ members }: { members: UserProfile[] }) {
             </Button>
           )}
         </div>
-        <div className="bg-surface border border-line rounded-2xl shadow-card divide-y divide-line/70 overflow-hidden">
+        <div className="bg-surface border border-line rounded-lg divide-y divide-line overflow-hidden">
           {rest.map(row)}
         </div>
       </section>

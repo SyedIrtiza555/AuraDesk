@@ -21,7 +21,7 @@ export function TeamGovernanceModal({ teamUsers }: { teamUsers: UserProfile[] })
         href="https://console.firebase.google.com/project/aura-cad-2/authentication/users"
         target="_blank"
         rel="noopener noreferrer"
-        className="mb-5 flex items-center justify-between gap-3 rounded-2xl bg-surface-muted ring-1 ring-line px-4 py-3 text-[13px] hover:ring-line-strong transition-colors"
+        className="mb-4 flex items-center justify-between gap-3 rounded-md bg-surface-muted border border-line px-3 py-2 text-xs hover:border-line-strong transition-colors"
       >
         <span className="text-muted">
           Sign-in accounts live in Firebase Authentication, project <span className="font-semibold text-ink">aura-cad-2</span>

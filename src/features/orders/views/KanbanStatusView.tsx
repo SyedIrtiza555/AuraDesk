@@ -29,10 +29,9 @@ export function KanbanStatusView({ orders, onUpdateOrder }: KanbanStatusViewProp
   };
 
   return (
-    <div className="h-full flex gap-3.5 overflow-x-auto pb-2 scrollbar-thin">
+    <div className="h-full flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
       {ALL_STATUSES.map((status) => {
         const meta = STATUS_META[status];
-        const Icon = meta.icon;
         const columnOrders = orders.filter((o) => o.status === status);
         const isTarget = dropTarget === status;
 
@@ -50,24 +49,24 @@ export function KanbanStatusView({ orders, onUpdateOrder }: KanbanStatusViewProp
               handleDrop(status);
             }}
             className={cn(
-              'w-[280px] shrink-0 flex flex-col rounded-2xl bg-ink/[0.035] transition-colors',
-              isTarget && 'bg-aura-soft ring-2 ring-aura'
+              'w-[260px] shrink-0 flex flex-col rounded-lg bg-surface-muted border border-line transition-colors',
+              isTarget && 'bg-accent-soft ring-2 ring-accent/30'
             )}
           >
-            <div className="px-3.5 pt-3.5 pb-2.5" title={meta.hint}>
-              <div className={cn('h-1 rounded-full mb-3', meta.bar)} />
+            <div className="px-3 pt-2.5 pb-2" title={meta.hint}>
+              
               <div className="flex items-center gap-2">
-                <Icon className="w-4 h-4 text-muted" />
-                <span className="text-sm font-semibold text-ink flex-1">{meta.label}</span>
-                <span className="text-xs font-semibold text-muted bg-surface rounded-full px-2 py-0.5 tabular-nums">
+                <span className={cn('w-2 h-2 rounded-full', meta.dot)} />
+                <span className="text-[13px] font-medium text-ink flex-1">{meta.label}</span>
+                <span className="text-xs text-faint tabular-nums">
                   {columnOrders.length}
                 </span>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-2.5 pb-2.5 space-y-2.5 scrollbar-thin">
+            <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-1.5 scrollbar-thin">
               {columnOrders.length === 0 ? (
-                <div className="h-20 rounded-xl border-2 border-dashed border-line flex items-center justify-center text-xs text-faint">
+                <div className="h-14 rounded-md border border-dashed border-line flex items-center justify-center text-xs text-faint">
                   {canDrag ? 'Drop an order here' : 'Nothing here'}
                 </div>
               ) : (

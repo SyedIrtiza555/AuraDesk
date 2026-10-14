@@ -38,12 +38,12 @@ export function CalendarView({ orders }: { orders: Order[] }) {
     });
 
   return (
-    <div className="h-full bg-surface border border-line rounded-2xl shadow-card flex flex-col overflow-hidden">
-      <div className="px-4 py-3 border-b border-line flex items-center gap-2">
+    <div className="h-full border border-line rounded-lg flex flex-col overflow-hidden">
+      <div className="px-3 py-2 border-b border-line flex items-center gap-1.5">
         <IconButton label="Previous month" onClick={() => setCursor(new Date(year, month - 1, 1))}>
           <ChevronLeft className="w-4 h-4" />
         </IconButton>
-        <h2 className="font-display text-xl text-ink w-44 text-center">
+        <h2 className="text-[14px] font-semibold text-ink w-36 text-center">
           {cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
         </h2>
         <IconButton label="Next month" onClick={() => setCursor(new Date(year, month + 1, 1))}>
@@ -89,7 +89,7 @@ export function CalendarView({ orders }: { orders: Order[] }) {
             <div
               key={i}
               className={cn(
-                'min-h-[96px] p-1.5 border-r border-b border-line/70 [&:nth-child(7n)]:border-r-0 flex flex-col gap-1',
+                'min-h-[80px] p-1.5 border-r border-b border-line/70 [&:nth-child(7n)]:border-r-0 flex flex-col gap-1',
                 !inMonth && 'bg-surface-muted/60'
               )}
             >
@@ -97,7 +97,7 @@ export function CalendarView({ orders }: { orders: Order[] }) {
                 <span
                   className={cn(
                     'self-start text-xs font-semibold w-6 h-6 rounded-full flex items-center justify-center',
-                    isToday ? 'bg-aura text-ink' : 'text-muted'
+                    isToday ? 'bg-accent text-white' : 'text-muted'
                   )}
                 >
                   {day}
@@ -111,7 +111,7 @@ export function CalendarView({ orders }: { orders: Order[] }) {
                     title={`${o.orderNumber} · ${STATUS_META[o.status].label}`}
                     className={cn(
                       'w-full text-left flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs transition-colors',
-                      selectedOrderId === o.id ? 'bg-ink text-white' : 'bg-surface-muted hover:bg-aura-soft text-ink'
+                      selectedOrderId === o.id ? 'bg-accent text-white' : 'bg-surface-muted hover:bg-accent-soft text-ink'
                     )}
                   >
                     <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', STATUS_META[o.status].dot)} />

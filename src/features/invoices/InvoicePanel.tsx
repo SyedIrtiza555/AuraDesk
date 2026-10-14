@@ -75,19 +75,19 @@ export function InvoicePanel({ orderId, orderAmount, userRole, currentUserName }
   };
 
   return (
-    <section className="bg-surface border border-line rounded-2xl p-4">
+    <section className="bg-surface border border-line rounded-md p-3">
       <SectionLabel icon={<Receipt />}>Invoice</SectionLabel>
-      <div className="mt-3 flex items-center gap-4">
+      <div className="mt-2 flex items-center gap-3">
         <div
           className={cn(
-            'w-11 h-11 rounded-xl flex items-center justify-center shrink-0',
-            paid ? 'bg-aura text-ink' : 'bg-surface-muted text-faint'
+            'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
+            paid ? 'bg-emerald-50 text-emerald-600' : 'bg-surface-muted text-faint'
           )}
         >
-          {paid ? <CheckCircle2 className="w-5 h-5" /> : <CircleDashed className="w-5 h-5" />}
+          {paid ? <CheckCircle2 className="w-4 h-4" /> : <CircleDashed className="w-4 h-4" />}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-display text-2xl text-ink tabular-nums">{formatMoney(current.amount || orderAmount)}</div>
+          <div className="text-[15px] font-semibold text-ink tabular-nums">{formatMoney(current.amount || orderAmount)}</div>
           <div className="text-xs text-muted">
             {loading
               ? 'Loading…'

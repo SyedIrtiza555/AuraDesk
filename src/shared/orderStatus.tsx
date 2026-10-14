@@ -59,9 +59,9 @@ export const STATUS_META: Record<OrderStatus, StatusMeta> = {
     hint: 'The designer is working on the CAD.',
     icon: Hammer,
     actor: 'designer',
-    pill: 'bg-copper-soft text-copper-deep ring-copper/40',
-    dot: 'bg-copper',
-    bar: 'bg-copper',
+    pill: 'bg-orange-50 text-orange-700 ring-orange-200',
+    dot: 'bg-amber-500',
+    bar: 'bg-amber-500',
   },
   ADMIN_REVIEW: {
     label: 'In review',
@@ -95,9 +95,9 @@ export const STATUS_META: Record<OrderStatus, StatusMeta> = {
     hint: 'Done and closed.',
     icon: BadgeCheck,
     actor: null,
-    pill: 'bg-aura-soft text-aura-deep ring-aura',
-    dot: 'bg-aura-deep',
-    bar: 'bg-aura',
+    pill: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    dot: 'bg-emerald-500',
+    bar: 'bg-emerald-400',
   },
 };
 

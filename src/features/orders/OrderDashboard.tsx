@@ -175,37 +175,38 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
 
       <div className="flex-1 min-w-0 flex flex-col bg-canvas">
         {/* Top bar */}
-        <header className="h-[72px] shrink-0 px-7 flex items-center gap-5 border-b border-line bg-canvas/80 backdrop-blur">
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display text-[26px] leading-none text-ink truncate">{page.title}</h1>
-            <p className="mt-1 text-[13px] text-muted truncate">{page.subtitle}</p>
-          </div>
+        <header className="h-12 shrink-0 px-5 flex items-center gap-3 border-b border-line">
+          <h1 className="text-[14px] font-semibold text-ink truncate" title={page.subtitle}>
+            {page.title}
+          </h1>
+          <span className="hidden lg:block text-[13px] text-faint truncate flex-1">{page.subtitle}</span>
+          <div className="flex-1 lg:hidden" />
 
           {(activeEntity === 'orders' || activeEntity === 'invoices') && (
-            <div className="relative w-72 hidden md:block">
+            <div className="relative w-64 hidden md:block">
               <Input
                 ref={searchRef}
                 icon={<Search />}
-                placeholder="Search orders, clients…"
+                placeholder="Search…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Escape' && setSearchQuery('')}
-                className="pr-14 bg-surface"
+                className="h-7 pr-14 bg-surface-muted border-transparent focus:bg-surface"
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
                 <Kbd>Ctrl K</Kbd>
               </span>
             </div>
           )}
 
           {activeEntity === 'team' ? (
-            <Button variant="secondary" onClick={openTeamModal}>
-              <ShieldCheck className="w-4 h-4" /> Auth settings
+            <Button variant="secondary" size="sm" onClick={openTeamModal}>
+              <ShieldCheck className="w-3.5 h-3.5" /> Auth settings
             </Button>
           ) : (
             canCreate && (
-              <Button variant="aura" onClick={openNewOrderModal} title="New order (Ctrl+N)">
-                <Plus className="w-4 h-4" /> New order
+              <Button variant="accent" size="sm" onClick={openNewOrderModal} title="New order (Ctrl+N)">
+                <Plus className="w-3.5 h-3.5" /> New order
               </Button>
             )
           )}
@@ -221,7 +222,7 @@ export function OrderDashboard({ teamUsers }: { teamUsers: UserProfile[] }) {
           {activeEntity === 'invoices' && !isDesigner && <InvoicesPanel orders={visibleOrders} />}
           {activeEntity === 'team' && isAdmin && (
             <div className="h-full overflow-y-auto">
-              <div className="max-w-4xl mx-auto px-7 py-6">
+              <div className="max-w-3xl mx-auto px-5 py-5">
                 <TeamMemberList members={teamUsers} />
               </div>
             </div>

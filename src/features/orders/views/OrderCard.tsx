@@ -35,22 +35,22 @@ export function OrderCard({
       onDragStart={onDragStart}
       onClick={() => setSelectedOrder(order, 'side')}
       className={cn(
-        'group relative p-3.5 rounded-xl bg-surface border cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-card',
-        isSelected ? 'border-ink ring-2 ring-aura' : mine ? 'border-aura ring-1 ring-aura' : 'border-line',
+        'group relative p-2.5 rounded-md bg-surface border cursor-pointer transition-colors hover:border-line-strong',
+        isSelected ? 'border-accent ring-2 ring-accent/15' : mine ? 'border-accent/40' : 'border-line',
         draggable && 'active:cursor-grabbing'
       )}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-semibold text-faint tabular-nums">{order.orderNumber}</span>
         {mine && (
-          <span className="text-[10px] font-bold uppercase tracking-wide text-aura-deep bg-aura-soft px-1.5 py-0.5 rounded">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-accent-deep bg-accent-soft px-1.5 py-0.5 rounded">
             Your move
           </span>
         )}
       </div>
 
-      <h4 className="mt-1 text-sm font-semibold text-ink leading-snug line-clamp-2">{order.title}</h4>
-      <p className="mt-0.5 text-[13px] text-muted truncate">{order.client_name}</p>
+      <h4 className="mt-0.5 text-[13px] font-medium text-ink leading-snug line-clamp-2">{order.title}</h4>
+      <p className="text-xs text-muted truncate">{order.client_name}</p>
 
       {order.status === 'RETURNED_TO_AGENT' && order.escalation_note && (
         <div className="mt-2 flex gap-1.5 text-xs text-rose-700 bg-rose-50 rounded-lg px-2 py-1.5">
@@ -65,7 +65,7 @@ export function OrderCard({
         </div>
       )}
 
-      <div className="mt-3 pt-2.5 border-t border-line/70 flex items-center gap-3 text-xs text-muted">
+      <div className="mt-2 flex items-center gap-2.5 text-[11px] text-muted">
         {order.assigned_designer_name ? (
           <Avatar size="xs" name={order.assigned_designer_name} initials={order.assigned_designer_initials} />
         ) : (
@@ -81,7 +81,7 @@ export function OrderCard({
             {revisions}
           </span>
         )}
-        {!isDesigner && <span className="ml-auto font-semibold text-ink tabular-nums">{formatMoney(order.agreed_price)}</span>}
+        {!isDesigner && <span className="ml-auto font-medium text-ink-muted tabular-nums">{formatMoney(order.agreed_price)}</span>}
       </div>
     </div>
   );

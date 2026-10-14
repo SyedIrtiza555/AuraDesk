@@ -7,30 +7,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-
 // ---------------------------------------------------------------------------
 // Button
 // ---------------------------------------------------------------------------
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'aura' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
+  variant?: 'primary' | 'accent' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
 }
 
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-ink text-white hover:bg-ink-soft shadow-sm',
-  aura: 'bg-aura text-ink hover:brightness-95 shadow-sm font-semibold',
-  secondary: 'bg-surface text-ink border border-line hover:border-line-strong hover:bg-surface-muted shadow-xs',
-  outline: 'border border-line-strong text-ink hover:bg-surface',
-  ghost: 'text-muted hover:text-ink hover:bg-ink/5',
-  danger: 'bg-rose-600 text-white hover:bg-rose-500 shadow-sm',
-  success: 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm',
+  primary: 'bg-ink text-white hover:bg-ink-soft',
+  accent: 'bg-accent text-white hover:bg-accent-hover',
+  secondary: 'bg-surface text-ink border border-line hover:bg-surface-muted shadow-card',
+  outline: 'border border-line-strong text-ink hover:bg-surface-muted',
+  ghost: 'text-muted hover:text-ink hover:bg-ink/[0.04]',
+  danger: 'bg-rose-600 text-white hover:bg-rose-500',
+  success: 'bg-emerald-600 text-white hover:bg-emerald-500',
 };
 
 const BUTTON_SIZES: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'h-8 px-3 text-xs gap-1.5 rounded-lg',
-  md: 'h-9 px-4 text-sm gap-2 rounded-xl',
-  lg: 'h-11 px-5 text-sm gap-2 rounded-xl',
+  sm: 'h-7 px-2.5 text-xs gap-1.5 rounded-md',
+  md: 'h-8 px-3 text-[13px] gap-1.5 rounded-md',
+  lg: 'h-9 px-4 text-[13px] gap-2 rounded-md',
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -39,7 +38,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center font-medium whitespace-nowrap transition-all select-none active:scale-[0.98] disabled:opacity-45 disabled:active:scale-100',
+        'inline-flex items-center justify-center font-medium whitespace-nowrap transition-colors select-none disabled:opacity-45',
         BUTTON_VARIANTS[variant],
         BUTTON_SIZES[size],
         className
@@ -58,7 +57,7 @@ Button.displayName = 'Button';
 // ---------------------------------------------------------------------------
 export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   label: string;
-  tone?: 'default' | 'danger' | 'success' | 'inverse';
+  tone?: 'default' | 'danger' | 'success';
   size?: 'sm' | 'md';
   active?: boolean;
 }
@@ -71,13 +70,12 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       title={label}
       aria-label={label}
       className={cn(
-        'inline-flex items-center justify-center rounded-lg transition-colors shrink-0 disabled:opacity-40',
-        size === 'sm' ? 'w-7 h-7' : 'w-8 h-8',
-        tone === 'default' && 'text-muted hover:text-ink hover:bg-ink/5',
+        'inline-flex items-center justify-center rounded-md transition-colors shrink-0 disabled:opacity-40',
+        size === 'sm' ? 'w-6 h-6' : 'w-7 h-7',
+        tone === 'default' && 'text-muted hover:text-ink hover:bg-ink/[0.05]',
         tone === 'danger' && 'text-muted hover:text-rose-600 hover:bg-rose-50',
         tone === 'success' && 'text-muted hover:text-emerald-700 hover:bg-emerald-50',
-        tone === 'inverse' && 'text-white/60 hover:text-white hover:bg-white/10',
-        active && 'bg-surface text-ink shadow-xs',
+        active && 'bg-ink/[0.06] text-ink',
         className
       )}
       {...props}
@@ -92,7 +90,7 @@ IconButton.displayName = 'IconButton';
 // Form controls
 // ---------------------------------------------------------------------------
 const FIELD_BASE =
-  'w-full bg-surface border border-line rounded-xl text-ink placeholder:text-faint text-sm transition-colors focus:outline-none focus:border-ink focus:ring-2 focus:ring-aura/60 disabled:bg-surface-muted disabled:text-muted';
+  'w-full bg-surface border border-line-strong rounded-md text-ink placeholder:text-faint text-[13px] transition-colors focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:bg-surface-muted disabled:text-muted';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
@@ -104,7 +102,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     <div className="w-full">
       <div className="relative">
         {icon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-faint pointer-events-none [&>svg]:w-4 [&>svg]:h-4">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-faint pointer-events-none [&>svg]:w-3.5 [&>svg]:h-3.5">
             {icon}
           </span>
         )}
@@ -112,15 +110,15 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           className={cn(
             FIELD_BASE,
-            'h-10 px-3.5',
-            icon && 'pl-9.5',
-            error && 'border-rose-400 focus:border-rose-500 focus:ring-rose-200',
+            'h-8 px-2.5',
+            icon && 'pl-8',
+            error && 'border-rose-400 focus:border-rose-500 focus:ring-rose-100',
             className
           )}
           {...props}
         />
       </div>
-      {error && <p className="mt-1.5 text-xs text-rose-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
     </div>
   )
 );
@@ -130,13 +128,13 @@ export const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.TextareaHTMLAttributes<HTMLTextAreaElement>
 >(({ className, ...props }, ref) => (
-  <textarea ref={ref} className={cn(FIELD_BASE, 'px-3.5 py-2.5 leading-relaxed resize-none', className)} {...props} />
+  <textarea ref={ref} className={cn(FIELD_BASE, 'px-2.5 py-2 leading-relaxed resize-none', className)} {...props} />
 ));
 Textarea.displayName = 'Textarea';
 
 export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, ...props }, ref) => (
-    <select ref={ref} className={cn(FIELD_BASE, 'h-10 px-3 pr-8 cursor-pointer', className)} {...props} />
+    <select ref={ref} className={cn(FIELD_BASE, 'h-8 px-2 pr-7 cursor-pointer', className)} {...props} />
   )
 );
 Select.displayName = 'Select';
@@ -156,12 +154,12 @@ export function Field({
 }) {
   return (
     <label className={cn('block', className)}>
-      <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-muted mb-1.5 [&>svg]:w-3.5 [&>svg]:h-3.5 [&>svg]:text-faint">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-ink-muted mb-1 [&>svg]:w-3.5 [&>svg]:h-3.5 [&>svg]:text-faint">
         {icon}
         {label}
       </span>
       {children}
-      {hint && <span className="block mt-1.5 text-xs text-muted">{hint}</span>}
+      {hint && <span className="block mt-1 text-xs text-muted">{hint}</span>}
     </label>
   );
 }
@@ -170,24 +168,24 @@ export function Field({
 // Badge
 // ---------------------------------------------------------------------------
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'aura' | 'ink';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple' | 'accent' | 'ink';
 }
 
 const BADGE_STYLES: Record<NonNullable<BadgeProps['variant']>, string> = {
   default: 'bg-surface-muted text-ink-muted ring-line',
-  success: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  warning: 'bg-amber-50 text-amber-800 ring-amber-200',
+  success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  warning: 'bg-amber-50 text-amber-700 ring-amber-200',
   danger: 'bg-rose-50 text-rose-700 ring-rose-200',
-  info: 'bg-sky-50 text-sky-800 ring-sky-200',
-  purple: 'bg-violet-50 text-violet-800 ring-violet-200',
-  aura: 'bg-aura-soft text-aura-deep ring-aura',
-  ink: 'bg-ink text-white ring-ink',
+  info: 'bg-sky-50 text-sky-700 ring-sky-200',
+  purple: 'bg-violet-50 text-violet-700 ring-violet-200',
+  accent: 'bg-accent-soft text-accent-deep ring-accent/20',
+  ink: 'bg-ink/[0.06] text-ink ring-transparent',
 };
 
 export const Badge: React.FC<BadgeProps> = ({ className, variant = 'default', children, ...props }) => (
   <span
     className={cn(
-      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset whitespace-nowrap',
+      'inline-flex items-center gap-1 px-1.5 py-px rounded text-[11px] font-medium ring-1 ring-inset whitespace-nowrap',
       BADGE_STYLES[variant],
       className
     )}
@@ -201,12 +199,12 @@ export const Badge: React.FC<BadgeProps> = ({ className, variant = 'default', ch
 // Surfaces & feedback
 // ---------------------------------------------------------------------------
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('bg-surface border border-line rounded-2xl shadow-card', className)} {...props} />;
+  return <div className={cn('bg-surface border border-line rounded-lg', className)} {...props} />;
 }
 
 export function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-1.5 text-xs font-semibold text-muted uppercase tracking-wide [&>svg]:w-3.5 [&>svg]:h-3.5">
+    <div className="flex items-center gap-1.5 text-xs font-medium text-muted [&>svg]:w-3.5 [&>svg]:h-3.5">
       {icon}
       {children}
     </div>
@@ -224,19 +222,19 @@ export function Spinner({ className }: { className?: string }) {
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex items-center h-5 px-1.5 rounded-md border border-line bg-surface-muted text-[10px] font-semibold text-muted font-sans">
+    <kbd className="inline-flex items-center h-[18px] px-1 rounded border border-line bg-surface-muted text-[10px] font-medium text-faint font-sans">
       {children}
     </kbd>
   );
 }
 
 const AVATAR_TONES = [
-  'bg-aura text-ink',
-  'bg-copper text-white',
-  'bg-amber-200 text-amber-900',
-  'bg-sky-200 text-sky-900',
-  'bg-violet-200 text-violet-900',
-  'bg-emerald-200 text-emerald-900',
+  'bg-indigo-100 text-indigo-700',
+  'bg-sky-100 text-sky-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-800',
+  'bg-rose-100 text-rose-700',
+  'bg-violet-100 text-violet-700',
 ];
 
 export function Avatar({
@@ -259,9 +257,9 @@ export function Avatar({
         'inline-flex items-center justify-center rounded-full font-semibold shrink-0',
         AVATAR_TONES[seed % AVATAR_TONES.length],
         size === 'xs' && 'w-5 h-5 text-[9px]',
-        size === 'sm' && 'w-7 h-7 text-[10px]',
-        size === 'md' && 'w-9 h-9 text-xs',
-        size === 'lg' && 'w-12 h-12 text-sm',
+        size === 'sm' && 'w-6 h-6 text-[10px]',
+        size === 'md' && 'w-7 h-7 text-[11px]',
+        size === 'lg' && 'w-9 h-9 text-xs',
         className
       )}
     >
@@ -284,15 +282,11 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-col items-center justify-center text-center py-14 px-6', className)}>
-      {icon && (
-        <div className="w-12 h-12 rounded-2xl bg-aura-soft text-aura-deep flex items-center justify-center mb-4 [&>svg]:w-6 [&>svg]:h-6">
-          {icon}
-        </div>
-      )}
-      <h3 className="font-display text-lg text-ink">{title}</h3>
-      {description && <p className="mt-1 text-sm text-muted max-w-sm">{description}</p>}
-      {action && <div className="mt-5">{action}</div>}
+    <div className={cn('flex flex-col items-center justify-center text-center py-12 px-6', className)}>
+      {icon && <div className="text-faint mb-3 [&>svg]:w-6 [&>svg]:h-6">{icon}</div>}
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      {description && <p className="mt-1 text-[13px] text-muted max-w-sm">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -320,7 +314,7 @@ export function SegmentedControl<T extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn('inline-flex items-center gap-0.5 p-1 rounded-xl bg-ink/[0.05]', className)} role="tablist">
+    <div className={cn('inline-flex items-center gap-px p-0.5 rounded-md bg-ink/[0.05]', className)} role="tablist">
       {options.map((opt) => {
         const Icon = opt.icon;
         const active = opt.value === value;
@@ -330,10 +324,11 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="tab"
             aria-selected={active}
+            title={opt.label || undefined}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg font-medium transition-all whitespace-nowrap',
-              size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-[13px]',
+              'inline-flex items-center gap-1.5 rounded font-medium transition-colors whitespace-nowrap',
+              size === 'sm' ? 'h-6 px-2 text-xs' : 'h-7 px-2.5 text-[13px]',
               active ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink'
             )}
           >
@@ -350,11 +345,11 @@ export function SegmentedControl<T extends string>({
 // Modal
 // ---------------------------------------------------------------------------
 const MODAL_TONES = {
-  default: 'bg-ink text-aura',
-  aura: 'bg-aura text-ink',
-  warning: 'bg-amber-100 text-amber-700',
-  success: 'bg-emerald-100 text-emerald-700',
-  danger: 'bg-rose-100 text-rose-700',
+  default: 'text-muted',
+  accent: 'text-accent',
+  warning: 'text-amber-600',
+  success: 'text-emerald-600',
+  danger: 'text-rose-600',
 };
 
 export function Modal({
@@ -390,44 +385,33 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh]">
+      <div className="absolute inset-0 bg-ink/20 animate-fade-in" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative w-full bg-surface rounded-3xl shadow-pop flex flex-col max-h-[88vh] overflow-hidden animate-rise-in',
-          size === 'sm' && 'max-w-md',
-          size === 'md' && 'max-w-lg',
-          size === 'lg' && 'max-w-2xl',
-          size === 'xl' && 'max-w-4xl'
+          'relative w-full bg-surface rounded-xl border border-line shadow-pop flex flex-col max-h-[80vh] overflow-hidden animate-rise-in',
+          size === 'sm' && 'max-w-sm',
+          size === 'md' && 'max-w-md',
+          size === 'lg' && 'max-w-xl',
+          size === 'xl' && 'max-w-3xl'
         )}
       >
-        <div className="flex items-start gap-3.5 px-6 pt-6 pb-4">
-          {icon && (
-            <div
-              className={cn(
-                'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 [&>svg]:w-5 [&>svg]:h-5',
-                MODAL_TONES[tone]
-              )}
-            >
-              {icon}
-            </div>
-          )}
-          <div className="flex-1 min-w-0 pt-0.5">
-            <h2 className="font-display text-xl text-ink leading-tight">{title}</h2>
-            {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+        <div className="flex items-start gap-2.5 px-5 pt-4 pb-3">
+          {icon && <div className={cn('mt-0.5 shrink-0 [&>svg]:w-4 [&>svg]:h-4', MODAL_TONES[tone])}>{icon}</div>}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[15px] font-semibold text-ink leading-tight">{title}</h2>
+            {description && <p className="mt-1 text-[13px] text-muted">{description}</p>}
           </div>
-          <IconButton label="Close" onClick={onClose} className="-mr-2 -mt-1">
-            <X className="w-4.5 h-4.5" />
+          <IconButton label="Close" onClick={onClose} className="-mr-1.5 -mt-0.5">
+            <X className="w-4 h-4" />
           </IconButton>
         </div>
-        {children && <div className="px-6 pb-5 overflow-y-auto">{children}</div>}
+        {children && <div className="px-5 pb-4 overflow-y-auto">{children}</div>}
         {footer && (
-          <div className="px-6 py-4 bg-surface-muted border-t border-line flex items-center justify-end gap-2.5">
-            {footer}
-          </div>
+          <div className="px-5 py-3 border-t border-line flex items-center justify-end gap-2">{footer}</div>
         )}
       </div>
     </div>

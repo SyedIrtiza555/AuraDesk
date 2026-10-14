@@ -5,7 +5,7 @@ import type { ActiveEntity } from '../../shared/types';
 import { Avatar, IconButton, Logo, LogoMark, cn } from '../../shared/ui';
 import { useUpdater } from '../layout/UpdateNotifier';
 import {
-  LayoutDashboard,
+  LayoutList,
   Palette,
   Briefcase,
   Contact,
@@ -61,11 +61,8 @@ export function LeftSidebar(props: LeftSidebarProps) {
     setCurrentUser(null);
   };
 
-  const sections: { title: string; items: NavItem[] }[] = [
-    {
-      title: 'Workspace',
-      items: [{ id: 'orders', label: 'Orders', icon: LayoutDashboard, count: props.orderCount, highlight: props.attentionCount }],
-    },
+  const sections: { title?: string; items: NavItem[] }[] = [
+    { items: [{ id: 'orders', label: 'Orders', icon: LayoutList, count: props.orderCount, highlight: props.attentionCount }] },
     {
       title: 'People',
       items: [
@@ -74,15 +71,15 @@ export function LeftSidebar(props: LeftSidebarProps) {
         { id: 'prospects', label: 'Clients', icon: Contact, count: props.prospectCount },
       ],
     },
-    ...(!isDesigner
-      ? [{ title: 'Finance', items: [{ id: 'invoices' as ActiveEntity, label: 'Invoices', icon: Receipt, count: props.invoiceCount }] }]
-      : []),
-    ...(isAdminOrOwner
+    ...(!isDesigner || isAdminOrOwner
       ? [
           {
-            title: 'Admin',
+            title: 'Workspace',
             items: [
-              { id: 'team' as ActiveEntity, label: 'Team & roles', icon: ShieldCheck, count: props.teamCount, highlight: props.pendingCount },
+              ...(!isDesigner ? [{ id: 'invoices' as ActiveEntity, label: 'Invoices', icon: Receipt, count: props.invoiceCount }] : []),
+              ...(isAdminOrOwner
+                ? [{ id: 'team' as ActiveEntity, label: 'Team & roles', icon: ShieldCheck, count: props.teamCount, highlight: props.pendingCount }]
+                : []),
             ],
           },
         ]
@@ -92,42 +89,39 @@ export function LeftSidebar(props: LeftSidebarProps) {
   return (
     <aside
       className={cn(
-        'relative h-full bg-ink text-white flex flex-col shrink-0 transition-[width] duration-200 overflow-hidden',
-        isOpen ? 'w-[244px]' : 'w-[68px]'
+        'h-full bg-sidebar border-r border-line flex flex-col shrink-0 transition-[width] duration-150 overflow-hidden',
+        isOpen ? 'w-[220px]' : 'w-[52px]'
       )}
     >
-      <div className="absolute -top-24 -left-20 w-56 h-56 rounded-full bg-aura/15 blur-3xl pointer-events-none" />
-
       {/* Brand */}
-      <div className={cn('relative flex items-center h-16 shrink-0', isOpen ? 'px-4 justify-between' : 'justify-center')}>
-        {isOpen ? <Logo inverse /> : <LogoMark />}
+      <div className={cn('flex items-center h-12 shrink-0', isOpen ? 'pl-4 pr-2 justify-between' : 'justify-center')}>
+        {isOpen ? <Logo /> : <LogoMark />}
         {isOpen && (
-          <IconButton label="Collapse sidebar" tone="inverse" size="sm" onClick={toggle}>
-            <PanelLeftClose className="w-4 h-4" />
+          <IconButton label="Collapse sidebar" size="sm" onClick={toggle}>
+            <PanelLeftClose className="w-3.5 h-3.5" />
           </IconButton>
         )}
       </div>
 
       {!isOpen && (
-        <div className="flex justify-center pb-2">
-          <IconButton label="Expand sidebar" tone="inverse" size="sm" onClick={toggle}>
-            <PanelLeftOpen className="w-4 h-4" />
+        <div className="flex justify-center pb-1">
+          <IconButton label="Expand sidebar" size="sm" onClick={toggle}>
+            <PanelLeftOpen className="w-3.5 h-3.5" />
           </IconButton>
         </div>
       )}
 
       {/* Navigation */}
-      <nav className={cn('relative flex-1 overflow-y-auto scrollbar-thin pb-4', isOpen ? 'px-3' : 'px-2.5')}>
-        {sections.map((section) => (
-          <div key={section.title} className="mt-4 first:mt-1">
-            {isOpen ? (
-              <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/35">
-                {section.title}
-              </div>
-            ) : (
-              <div className="mx-3 mb-2 h-px bg-white/10" />
-            )}
-            <div className="space-y-0.5">
+      <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-3">
+        {sections.map((section, i) => (
+          <div key={section.title ?? i} className={i > 0 ? 'mt-4' : 'mt-1'}>
+            {section.title &&
+              (isOpen ? (
+                <div className="px-2 mb-1 text-[11px] font-medium text-faint">{section.title}</div>
+              ) : (
+                <div className="mx-2 mb-2 h-px bg-line" />
+              ))}
+            <div className="space-y-px">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = activeEntity === item.id;
@@ -137,28 +131,27 @@ export function LeftSidebar(props: LeftSidebarProps) {
                     onClick={() => setActiveEntity(item.id)}
                     title={isOpen ? undefined : item.label}
                     className={cn(
-                      'relative w-full flex items-center rounded-xl text-[13.5px] font-medium transition-colors',
-                      isOpen ? 'h-10 px-3 gap-3' : 'h-11 justify-center',
-                      active ? 'bg-aura text-ink' : 'text-white/65 hover:text-white hover:bg-white/[0.07]'
+                      'relative w-full flex items-center rounded-md text-[13px] transition-colors',
+                      isOpen ? 'h-7 px-2 gap-2' : 'h-8 justify-center',
+                      active
+                        ? 'bg-ink/[0.06] text-ink font-medium'
+                        : 'text-ink-muted hover:text-ink hover:bg-ink/[0.04]'
                     )}
                   >
-                    <Icon className="w-[18px] h-[18px] shrink-0" />
+                    <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-accent' : 'text-muted')} />
                     {isOpen && <span className="flex-1 text-left truncate">{item.label}</span>}
                     {isOpen && item.highlight ? (
                       <span
-                        className={cn(
-                          'min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center',
-                          active ? 'bg-ink text-aura' : 'bg-copper text-white'
-                        )}
+                        className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center bg-accent text-white"
                         title="Needs attention"
                       >
                         {item.highlight}
                       </span>
                     ) : isOpen ? (
-                      <span className={cn('text-xs tabular-nums', active ? 'text-ink/60' : 'text-white/35')}>{item.count}</span>
+                      <span className="text-xs text-faint tabular-nums">{item.count}</span>
                     ) : null}
                     {!isOpen && item.highlight ? (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-copper ring-2 ring-ink" />
+                      <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-accent" />
                     ) : null}
                   </button>
                 );
@@ -169,36 +162,36 @@ export function LeftSidebar(props: LeftSidebarProps) {
       </nav>
 
       {/* Account */}
-      <div className={cn('relative border-t border-white/10 shrink-0', isOpen ? 'p-3' : 'py-3 flex flex-col items-center gap-1')}>
+      <div className={cn('border-t border-line shrink-0', isOpen ? 'p-2' : 'py-2 flex flex-col items-center gap-1')}>
         {isOpen ? (
           <>
-            <div className="flex items-center gap-2.5 px-1.5 py-1">
-              <Avatar name={currentUser?.displayName} initials={currentUser?.initials} size="md" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold truncate">{currentUser?.displayName}</div>
-                <div className="text-xs text-white/45">{ROLE_LABEL[currentUser?.role ?? 'unassigned']}</div>
+            <div className="flex items-center gap-2 px-1.5 py-1">
+              <Avatar name={currentUser?.displayName} initials={currentUser?.initials} size="sm" />
+              <div className="flex-1 min-w-0 leading-tight">
+                <div className="text-[13px] font-medium text-ink truncate">{currentUser?.displayName}</div>
+                <div className="text-[11px] text-muted">{ROLE_LABEL[currentUser?.role ?? 'unassigned']}</div>
               </div>
-              <IconButton label="Sign out" tone="inverse" size="sm" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4" />
+              <IconButton label="Sign out" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-3.5 h-3.5" />
               </IconButton>
             </div>
             <button
               onClick={() => checkForUpdates(true)}
-              className="mt-1.5 w-full flex items-center gap-2 h-8 px-2.5 rounded-lg text-xs text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors"
+              className="mt-0.5 w-full flex items-center gap-2 h-7 px-2 rounded-md text-xs text-muted hover:text-ink hover:bg-ink/[0.04] transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span className="flex-1 text-left">Check for updates</span>
-              <span className="tabular-nums">v{__APP_VERSION__}</span>
+              <span className="tabular-nums text-faint">v{__APP_VERSION__}</span>
             </button>
           </>
         ) : (
           <>
             <Avatar name={currentUser?.displayName} initials={currentUser?.initials} size="sm" />
-            <IconButton label="Check for updates" tone="inverse" size="sm" onClick={() => checkForUpdates(true)}>
+            <IconButton label="Check for updates" size="sm" onClick={() => checkForUpdates(true)}>
               <RefreshCw className="w-3.5 h-3.5" />
             </IconButton>
-            <IconButton label="Sign out" tone="inverse" size="sm" onClick={handleSignOut}>
-              <LogOut className="w-4 h-4" />
+            <IconButton label="Sign out" size="sm" onClick={handleSignOut}>
+              <LogOut className="w-3.5 h-3.5" />
             </IconButton>
           </>
         )}

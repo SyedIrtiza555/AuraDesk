@@ -62,6 +62,16 @@ export function SafetyCheckModal({ onConfirmDelivery }: SafetyCheckModalProps) {
 
   return (
     <Modal
+      footer={
+        <>
+          <Button type="button" variant="ghost" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="deliver" variant="success" disabled={!isMatched} loading={submitting}>
+            <Check className="w-3.5 h-3.5" /> Confirm delivery
+          </Button>
+        </>
+      }
       open={isOpen}
       onClose={handleClose}
       tone="success"
@@ -69,16 +79,16 @@ export function SafetyCheckModal({ onConfirmDelivery }: SafetyCheckModalProps) {
       title="Confirm WhatsApp delivery"
       description="A quick check so nothing is marked delivered by accident. Paste the code into your WhatsApp message, then type it here."
     >
-      <form id="deliver" onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-2xl bg-ink text-white p-4">
-          <div className="flex items-center gap-1.5 text-xs text-white/50">
+      <form id="deliver" onSubmit={handleSubmit} className="space-y-3">
+        <div className="rounded-md bg-surface-muted border border-line p-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted">
             <MessageCircle className="w-3.5 h-3.5" /> Delivery code for {order.client_name}
           </div>
-          <div className="mt-2 flex items-center gap-3">
-            <span className="flex-1 font-mono text-[15px] text-aura break-all" data-selectable>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="flex-1 font-mono text-[13px] text-ink break-all" data-selectable>
               {expectedCode}
             </span>
-            <Button type="button" size="sm" variant="aura" onClick={handleCopy}>
+            <Button type="button" size="sm" variant="secondary" onClick={handleCopy}>
               {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               {copied ? 'Copied' : 'Copy'}
             </Button>
@@ -103,14 +113,6 @@ export function SafetyCheckModal({ onConfirmDelivery }: SafetyCheckModalProps) {
         </div>
       </form>
 
-      <div className="mt-6 flex items-center justify-end gap-2.5">
-        <Button type="button" variant="ghost" onClick={handleClose}>
-          Cancel
-        </Button>
-        <Button type="submit" form="deliver" variant="success" disabled={!isMatched} loading={submitting}>
-          <Check className="w-4 h-4" /> Confirm delivery
-        </Button>
-      </div>
     </Modal>
   );
 }

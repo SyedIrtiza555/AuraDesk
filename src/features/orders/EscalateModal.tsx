@@ -34,6 +34,16 @@ export function EscalateModal({ onConfirmEscalate }: EscalateModalProps) {
 
   return (
     <Modal
+      footer={
+        <>
+          <Button type="button" variant="ghost" onClick={close}>
+            Cancel
+          </Button>
+          <Button type="submit" form="escalate" variant="primary" disabled={!note.trim()} loading={submitting}>
+            <Send className="w-3.5 h-3.5" /> Send back
+          </Button>
+        </>
+      }
       open={isOpen}
       onClose={close}
       tone="warning"
@@ -41,23 +51,23 @@ export function EscalateModal({ onConfirmEscalate }: EscalateModalProps) {
       title="Send back to the agent"
       description="The agent gets this order back to clarify details with the client, then re-submits it."
     >
-      <form id="escalate" onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex items-center gap-3 rounded-2xl bg-surface-muted p-3.5">
-          <Avatar name={order.sales_agent_name} size="md" />
+      <form id="escalate" onSubmit={handleSubmit} className="space-y-3">
+        <div className="flex items-center gap-2.5 rounded-md bg-surface-muted border border-line p-2.5">
+          <Avatar name={order.sales_agent_name} size="sm" />
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-ink truncate">{order.title}</div>
+            <div className="text-[13px] font-medium text-ink truncate">{order.title}</div>
             <div className="text-xs text-muted">Going back to {order.sales_agent_name}</div>
           </div>
         </div>
 
         <div>
-          <div className="flex flex-wrap gap-1.5 mb-2.5">
+          <div className="flex flex-wrap gap-1 mb-2">
             {QUICK_REASONS.map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => setNote((n) => (n ? `${n}\n${r}` : r))}
-                className="h-7 px-2.5 rounded-full text-xs font-medium bg-surface ring-1 ring-line hover:ring-line-strong text-ink-muted"
+                className="h-6 px-2 rounded-md text-xs bg-surface border border-line hover:border-line-strong text-ink-muted"
               >
                 + {r}
               </button>
@@ -74,14 +84,6 @@ export function EscalateModal({ onConfirmEscalate }: EscalateModalProps) {
         </div>
       </form>
 
-      <div className="mt-6 flex items-center justify-end gap-2.5">
-        <Button type="button" variant="ghost" onClick={close}>
-          Cancel
-        </Button>
-        <Button type="submit" form="escalate" variant="primary" disabled={!note.trim()} loading={submitting}>
-          <Send className="w-4 h-4" /> Send back
-        </Button>
-      </div>
     </Modal>
   );
 }

@@ -123,14 +123,11 @@ function Screen({
   // 1. Initial auth check -> branded splash (prevents a flash of the login screen)
   if (isAuthChecking) {
     return (
-      <div className="h-full aura-backdrop flex flex-col justify-center items-center animate-fade-in">
-        <LogoMark glow className="w-16 h-16" />
-        <h1 className="mt-6 font-display text-3xl text-ink">
-          Aura <span className="italic text-copper">Desk</span>
-        </h1>
-        <div className="flex items-center gap-2 mt-3 text-sm text-muted">
+      <div className="h-full flex flex-col justify-center items-center gap-4 animate-fade-in">
+        <LogoMark className="w-9 h-9" />
+        <div className="flex items-center gap-2 text-[13px] text-muted">
           <Spinner className="w-3.5 h-3.5" />
-          <span>Opening your workspace…</span>
+          <span>Opening Aura Desk…</span>
         </div>
       </div>
     );
